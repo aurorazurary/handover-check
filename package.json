@@ -9,7 +9,7 @@
   "scripts": {
     "start": "node src/server/index.js",
     "dev": "node --watch src/server/index.js",
-    "test": "node --test test/",
+    "test": "node --test",
     "chat": "node src/cli/chat.js",
     "judge:conversations": "node llm_judge/run_conversations.js",
     "judge:run": "node llm_judge/run_judge.js",
