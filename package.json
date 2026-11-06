@@ -1,0 +1,26 @@
+{
+  "name": "handover-check",
+  "version": "1.0.0",
+  "description": "A conversational UI that has learners predict and explain what a coding agent changed, before revealing the diff.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "start": "node src/server/index.js",
+    "dev": "node --watch src/server/index.js",
+    "test": "node --test test/",
+    "chat": "node src/cli/chat.js",
+    "judge:conversations": "node llm_judge/run_conversations.js",
+    "judge:run": "node llm_judge/run_judge.js",
+    "judge:agreement": "node llm_judge/agreement.js",
+    "redteam": "node red_team/run_attacks.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1"
+  },
+  "license": "MIT",
+  "private": true
+}
