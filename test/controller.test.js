@@ -53,33 +53,44 @@ test('Phase 1 never sends the client a file list', async () => {
   assert.equal(r.ui.fileScore, undefined);
 });
 
-test('the full happy path reaches the card', async () => {
+test('the full happy path reaches the card, with no wasted turns', async () => {
   const s = await throughPhase1(newSession());
   assert.equal(s.state, S.WAIT_FOR_AGENT);
 
-  await step(s, '');                       // agent finishes, reconcile files
+  // The agent finishes. Reconciling the files and asking for the mechanism is
+  // one reply, not two.
+  await step(s, '');
   assert.equal(s.state, S.RECONCILE_MECHANISM);
   assert.equal(s.phase, 2);
 
-  await step(s, 'the page calls the helper, the helper posts to the route, the route '
-    + 'calls the controller which makes a token and emails it');
+  // Explaining the mechanism moves to GROUND, whose entry action asks the
+  // prerequisite question in the same reply.
+  const ground = await step(s, 'the page calls the helper, the helper posts to the route, '
+    + 'the route calls the controller which makes a token and emails it');
   assert.equal(s.state, S.GROUND);
+  assert.match(ground.reply, /middleware/i, 'the prerequisite was asked on entry');
 
-  await step(s, 'yes, middleware runs between the request arriving and the handler');
-  assert.equal(s.state, S.GROUND, 'the prereq question is asked before explaining');
-
-  await step(s, 'yes I know what middleware is, it runs before the route handler');
+  // Answering it moves to FINAL_CHECK, whose entry action asks the question.
+  const fc = await step(s, 'yes I know what middleware is, it runs before the route handler');
   assert.equal(s.state, S.FINAL_CHECK);
+  assert.match(fc.reply, /which file/i, 'the final check was asked on entry');
 
-  await step(s, '');                       // final check question asked
-  const r = await step(s, 'the auth controller, in forgot');
-  assert.equal(s.state, S.CARD);
-
-  const last = await step(s, 'ok');
+  // Answering that produces the card and ends.
+  const last = await step(s, 'the auth controller, in forgot');
   assert.equal(s.state, S.END);
+  assert.equal(last.done, true);
   assert.ok(last.ui.card, 'a card was produced');
   assert.equal(last.ui.card.codeChanged, false);
   assert.equal(last.ui.card.unrequested[0].path, 'server/middleware/rateLimit.js');
+});
+
+test('a learner is never asked to answer a question before it is asked', async () => {
+  const s = await throughPhase1(newSession());
+  await step(s, '');
+  const r1 = await step(s, 'the helper posts to the route and the controller emails a link');
+  // The reply that moves into GROUND must itself contain the prerequisite
+  // question, otherwise the next learner turn answers nothing.
+  assert.ok(r1.reply.includes('?'), 'the entry question is in the same reply');
 });
 
 test('the file score counts planned files and keeps the unplanned one separate', async () => {

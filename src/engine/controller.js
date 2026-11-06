@@ -164,21 +164,30 @@ export async function step(session, input) {
 
   const out = await handler({ session, scenario, input, turn });
 
+  let reply = out.reply;
+  let extraUi = out.ui || {};
+
   if (out.next) {
     session.state = out.next;
     session.phase = phaseOf(out.next);
     session.sub = 0;
+    // Some states open by asking something. That question belongs in this
+    // reply, not in the next one: otherwise the learner answers a question
+    // they have not been asked yet.
+    const entered = await runEntryActions(session, scenario);
+    if (entered.text) reply = `${reply}\n\n${entered.text}`;
+    extraUi = { ...extraUi, ...entered.ui };
   } else {
     session.sub += 1;
   }
 
-  addTurn(session, 'cui', out.reply);
+  addTurn(session, 'cui', reply);
   save(session);
 
   return {
     session,
-    reply: out.reply,
-    ui: { ...uiFor(session, scenario), ...(out.ui || {}) },
+    reply,
+    ui: { ...uiFor(session, scenario), ...extraUi },
     done: session.state === S.END,
   };
 }
@@ -190,6 +199,79 @@ function markHinted(session) {
       : session.state === S.GROUND ? 'concept'
         : session.state === S.FINAL_CHECK ? 'finalCheck' : null;
   if (item) recordProgress(session, item, 'hinted');
+}
+
+/**
+ * Entry actions: what a state says the moment it is entered, before the
+ * learner has said anything in it.
+ *
+ * Without these, a state whose first job is to ask a question would have to
+ * wait for a learner message to ask it, and the learner would be answering the
+ * previous question while reading the next one. Chaining is capped so a
+ * mistake in a scenario cannot loop.
+ *
+ * @type {Record<string, (a: {session: object, scenario: object}) => Promise<{text: string, next?: string, ui?: object}>>}
+ */
+const ENTRY = {
+  /** Ask the prerequisite before explaining the unrequested file (DG2). */
+  async [S.GROUND]({ session, scenario }) {
+    const concept = scenario.secret.concepts[0];
+    const unplanned = scenario.secret.changes.find((c) => !c.inPlan);
+    session.sub = 1;
+    return {
+      text: `Now ${unplanned.path}, the one that was not in the plan. ${concept.prereqQuestion}`,
+      ui: { concept: concept.id },
+    };
+  },
+
+  /** Ask the transfer question. */
+  async [S.FINAL_CHECK]({ scenario, session }) {
+    session.sub = 1;
+    return { text: scenario.secret.finalCheck.question };
+  },
+
+  /** The card is assembled from recorded facts, not generated, then we are done. */
+  async [S.CARD]({ session, scenario }) {
+    const card = buildCard(session, scenario);
+    const lines = [
+      `${card.feature}`,
+      `Files: ${card.files ? `${card.files.total} changed, you predicted ${card.files.predicted} of the ${card.files.planned} that were planned` : 'not scored'}`,
+      `Mechanism: ${card.mechanism ?? 'not reached'}`,
+      `Concept: ${card.concept ?? 'not reached'}`,
+      `Can modify: ${card.canModify ?? 'not reached'}`,
+      ...card.unrequested.map((u) => `Unrequested: ${u.path}, kept for you to decide`),
+      '',
+      'Say tomorrow:',
+      ...card.sayTomorrow.map((x) => `- ${x}`),
+      '',
+      'Nothing in the code was changed.',
+    ];
+    return { text: lines.join('\n'), next: S.END, ui: { card } };
+  },
+};
+
+/**
+ * Run entry actions for the state just entered, following any chain.
+ *
+ * @param {object} session
+ * @param {object} scenario
+ * @returns {Promise<{text: string, ui: object}>}
+ */
+async function runEntryActions(session, scenario) {
+  let text = '';
+  let ui = {};
+  for (let guard = 0; guard < 3; guard += 1) {
+    const entry = ENTRY[session.state];
+    if (!entry) break;
+    const e = await entry({ session, scenario });
+    text = text ? `${text}\n\n${e.text}` : e.text;
+    ui = { ...ui, ...(e.ui || {}) };
+    if (!e.next) break;
+    session.state = e.next;
+    session.phase = phaseOf(e.next);
+    session.sub = 0;
+  }
+  return { text, ui };
 }
 
 // ---------------------------------------------------------------------------
@@ -422,14 +504,7 @@ const HANDLERS = {
     const secret = scenario.secret;
     const concept = secret.concepts[0];
 
-    if (session.sub === 0) {
-      const unplanned = secret.changes.find((c) => !c.inPlan);
-      return {
-        reply: `Now ${unplanned.path}, the one that was not in the plan. ${concept.prereqQuestion}`,
-        ui: { concept: concept.id },
-      };
-    }
-
+    // The prerequisite question was asked on entry. This turn is their answer.
     // Which explanation to use is decided here, not by the model, so that the
     // same answer always produces the same depth.
     const knows = turn.attemptLevel === 2 && !/\b(no|not really|never heard|nope)\b/i.test(input);
@@ -470,10 +545,7 @@ const HANDLERS = {
   async [S.FINAL_CHECK]({ session, scenario, input, turn }) {
     const fc = scenario.secret.finalCheck;
 
-    if (session.sub === 0) {
-      return { reply: fc.question };
-    }
-
+    // The question was asked on entry. This turn is their answer.
     const named = scorePrediction(
       { text: input },
       [{ path: fc.answerPath, inPlan: true }],
@@ -515,24 +587,6 @@ const HANDLERS = {
     return { reply: await say(session, scenario, ctx), next: S.CARD, ui: { finalCheck: { named } } };
   },
 
-  /** The card. Assembled from recorded facts, not generated. */
-  async [S.CARD]({ session, scenario }) {
-    const card = buildCard(session, scenario);
-    const lines = [
-      `${card.feature}`,
-      `Files: ${card.files ? `${card.files.total} changed, you predicted ${card.files.predicted} of the ${card.files.planned} that were planned` : 'not scored'}`,
-      `Mechanism: ${card.mechanism ?? 'not reached'}`,
-      `Concept: ${card.concept ?? 'not reached'}`,
-      `Can modify: ${card.canModify ?? 'not reached'}`,
-      ...card.unrequested.map((u) => `Unrequested: ${u.path}, kept for you to decide`),
-      '',
-      'Say tomorrow:',
-      ...card.sayTomorrow.map((s) => `- ${s}`),
-      '',
-      'Nothing in the code was changed.',
-    ];
-    return { reply: lines.join('\n'), next: S.END, ui: { card } };
-  },
 };
 
 /**
