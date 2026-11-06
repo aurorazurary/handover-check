@@ -116,7 +116,10 @@ function references(haystack, phrase) {
     const squash = (s) => s.replace(/\s+/g, '');
     return haystack.includes(phrase) || squash(haystack).includes(squash(phrase));
   }
-  const words = phrase.split(' ').filter(Boolean);
+  // Authored aliases read naturally ("the reset page") but learners use a
+  // different article ("a reset page") or none at all. Match on the content
+  // words, not on the determiner.
+  const words = phrase.replace(/^(the|a|an)\s+/, '').split(' ').filter(Boolean);
   if (words.length === 1) {
     return new RegExp(`(^| )${escapeRegExp(words[0])}(s|es)?($| )`).test(haystack);
   }
