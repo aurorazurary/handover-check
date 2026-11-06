@@ -82,7 +82,7 @@ export function buildPhase1Context({ session, scenario, turnGoal, priorContext =
     REPO_MAP: pub.repoMap.map((p) => `- ${p}`).join('\n'),
     TURN_GOAL: turnGoal,
     PRIOR_CONTEXT: priorContext,
-  });
+  }, session.settings.promptVersion);
 
   assertNoSecret(system, scenario, 'phase 1 system prompt');
   return { system, messages: history(session) };
@@ -117,7 +117,7 @@ export function buildPhase2Context({
     GAP: gap,
     TURN_GOAL: turnGoal,
     PRIOR_CONTEXT: priorContext,
-  });
+  }, session.settings.promptVersion);
 
   return { system, messages: history(session) };
 }

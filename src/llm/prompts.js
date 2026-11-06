@@ -79,10 +79,12 @@ export function fill(template, values) {
  *
  * @param {string} name
  * @param {Record<string, string|number>} values
+ * @param {string} [version] pinned per session, so one run can use the
+ *   weakened v0 prompts while another uses v1
  * @returns {string}
  */
-export function render(name, values) {
-  return fill(loadPrompt(name), values);
+export function render(name, values, version = PROMPT_VERSION) {
+  return fill(loadPrompt(name, version), values);
 }
 
 /** Which prompt versions exist, newest-looking last. */

@@ -27,6 +27,8 @@ export const DEFAULT_THRESHOLD = 4;
  * @param {string} [opts.scenarioId]
  * @param {number} [opts.thresholdFiles]
  * @param {string[]} [opts.writes] languages the learner writes without help
+ * @param {string} [opts.promptVersion] pinned per session so the judge set can
+ *   run the weakened v0 prompts against the same engine
  * @param {boolean} [opts.persist]
  * @returns {import('./types.js').Session}
  */
@@ -34,6 +36,7 @@ export function createSession({
   scenarioId = 'password-reset',
   thresholdFiles = DEFAULT_THRESHOLD,
   writes = ['Java', 'Python'],
+  promptVersion = process.env.HC_PROMPT_VERSION || 'v1',
   persist = true,
 } = {}) {
   return {
@@ -47,7 +50,7 @@ export function createSession({
     sub: 0,
     returnState: null,
 
-    settings: { thresholdFiles, writes },
+    settings: { thresholdFiles, writes, promptVersion },
 
     transcript: [],
 
