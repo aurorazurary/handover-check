@@ -105,7 +105,9 @@ export async function begin(session) {
  */
 export async function step(session, input) {
   const scenario = getScenario(session.scenarioId);
-  addTurn(session, 'learner', input);
+  // An empty input is not an utterance. It is how the UI advances the session
+  // when the simulated agent finishes, so it is not recorded as a learner turn.
+  if (input !== '') addTurn(session, 'learner', input);
 
   const turn = classifyLearnerTurn(input);
 

@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Handover Check</title>
+<style>
+:root{
+  --bg:#faf3e8; --panel:#fffaf2; --ink:#3a2f22; --muted:#8a7a63; --line:#e8d9c0;
+  --amber:#c17f3f; --amber-dim:#e9d3b4; --rose:#c17158; --rose-dim:#f0dcd2;
+  --good:#5c7a52; --warn:#b4762a; --dark:#221d16; --code-ink:#efe6d6; --code-muted:#8f8471;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--ink);
+  font-family:'Segoe UI',-apple-system,Helvetica,Arial,sans-serif;overflow:hidden}
+button{font:inherit;cursor:pointer}
+code,.mono{font-family:'Cascadia Code',Consolas,'SF Mono',monospace}
+
+/* ---------- setup ---------- */
+#setup{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  background:var(--bg);z-index:20;padding:4vh 4vw;overflow:auto}
+.card-setup{background:var(--panel);border:1px solid var(--line);border-radius:16px;
+  padding:4vh 3vw;max-width:780px;width:100%;box-shadow:0 14px 40px rgba(150,100,40,.10)}
+.card-setup h1{font-size:2rem;color:#4a3218;margin-bottom:.6vh}
+.card-setup .tag{font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--amber);font-weight:600;margin-bottom:1.2vh}
+.card-setup p.lede{color:#5a4a33;line-height:1.5;margin-bottom:3vh}
+.field{margin-bottom:2.4vh}
+.field label{display:block;font-weight:600;margin-bottom:.8vh;font-size:.95rem}
+.field .hint{font-size:.85rem;color:var(--muted);margin-top:.5vh;line-height:1.4}
+.scenarios{display:grid;gap:10px}
+.scen{display:flex;gap:12px;align-items:flex-start;padding:1.4vh 1.2vw;border:1px solid var(--line);
+  border-radius:12px;background:#fff;text-align:left;width:100%}
+.scen:hover{border-color:var(--amber)}
+.scen.sel{border-color:var(--amber);background:#fdf5e9;box-shadow:inset 0 0 0 1px var(--amber)}
+.scen b{display:block;margin-bottom:.3vh}
+.scen span{font-size:.88rem;color:var(--muted)}
+input[type=text],input[type=number],select{font:inherit;padding:.9vh 1vw;border:1px solid var(--line);
+  border-radius:10px;background:#fff;color:var(--ink);width:100%}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.row>*{flex:1;min-width:180px}
+.start{background:var(--amber);color:#fff;border:none;border-radius:12px;
+  padding:1.4vh 2vw;font-size:1.05rem;font-weight:600;width:100%;margin-top:1vh}
+.start:hover{background:#ac6f33}
+.provider{margin-top:2vh;font-size:.82rem;color:var(--muted);text-align:center}
+
+/* ---------- main ---------- */
+#app{display:none;height:100%;flex-direction:column}
+#app.on{display:flex}
+.top{display:flex;align-items:center;gap:1vw;padding:1.2vh 1.6vw;border-bottom:1px solid var(--line);
+  background:var(--panel);flex:0 0 auto}
+.top .name{font-weight:700;color:#4a3218}
+.top .phase{font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;padding:.4vh .8vw;
+  border-radius:20px;background:var(--amber-dim);color:#5a3d1f;font-weight:600}
+.top .phase.p2{background:var(--dark);color:#e0a95c}
+.top .spacer{flex:1}
+.top button{background:#fff;border:1px solid var(--line);border-radius:10px;padding:.7vh 1vw;font-size:.88rem}
+.top button.on{background:var(--amber);color:#fff;border-color:var(--amber)}
+
+.split{flex:1;display:grid;grid-template-columns:minmax(300px,30%) 1fr;min-height:0}
+.agent{background:var(--dark);color:var(--code-ink);display:flex;flex-direction:column;min-height:0}
+.agent .hd{padding:1.4vh 1.2vw;font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--code-muted);border-bottom:1px solid #33291c;display:flex;align-items:center;gap:8px}
+.dot{width:9px;height:9px;border-radius:50%;background:#d9a441}
+.dot.waiting{background:var(--rose)}
+.dot.done{background:#8fbf7a}
+.agent .body{flex:1;overflow:auto;padding:1.8vh 1.2vw;font-family:'Cascadia Code',Consolas,monospace;
+  font-size:.92rem;line-height:1.85}
+.agent .plan{color:var(--code-muted)}
+.fl{display:flex;gap:10px}
+.fl .ck{width:14px;flex:0 0 14px}
+.fl.pend{color:var(--code-muted)}
+.fl.done{color:var(--code-ink)}
+.fl.extra{color:#e0a95c}
+.approve{margin-top:1.6vh;padding:1.2vh 1vw;background:#2b241a;border-left:3px solid #d9a441;color:#f0dcb0}
+.approve button{margin-top:1vh;margin-right:8px;background:#d9a441;border:none;color:#221d16;
+  padding:.6vh 1vw;border-radius:8px;font-weight:600}
+.approve button.sec{background:transparent;color:#d9a441;border:1px solid #6b5a3a}
+
+.right{display:flex;flex-direction:column;min-height:0;background:var(--bg)}
+.chat{flex:1;overflow:auto;padding:2.4vh 2vw;display:flex;flex-direction:column;gap:2vh}
+.b{max-width:74%;padding:1.5vh 1.4vw;border-radius:16px;font-size:1.05rem;line-height:1.55;white-space:pre-wrap}
+.b.cui{align-self:flex-start;background:var(--amber-dim);color:#4a3218;border-bottom-left-radius:4px}
+.b.me{align-self:flex-end;background:var(--rose-dim);color:#5a3226;border-bottom-right-radius:4px}
+.b.sys{align-self:center;background:transparent;border:1px dashed var(--line);color:var(--muted);
+  font-size:.88rem;max-width:90%;text-align:center}
+.b .who{display:block;font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;opacity:.6;margin-bottom:.4vh}
+.opts{display:flex;gap:8px;flex-wrap:wrap;align-self:flex-start}
+.opts button{background:#fff;border:1px solid var(--amber);color:#7a4a1a;border-radius:20px;
+  padding:.6vh 1vw;font-size:.92rem}
+
+.panelfiles{align-self:flex-start;display:flex;flex-wrap:wrap;gap:8px;max-width:88%}
+.chip{padding:.6vh .9vw;border-radius:20px;font-size:.92rem;background:#fff;border:1px solid var(--line);
+  color:var(--ink);font-family:'Cascadia Code',Consolas,monospace;display:flex;gap:6px;align-items:center}
+.chip.ok{border-color:var(--good);background:#f0f5ec;color:#3f5738}
+.chip.miss{border-color:var(--warn);background:#fdf3e4;color:#7a4a1a}
+.chip.extra{border-color:var(--amber);background:#fdf0dc;color:#7a4a1a;font-weight:600}
+
+.hunk{align-self:flex-start;background:var(--dark);color:var(--code-ink);border-radius:12px;
+  padding:1.4vh 1.2vw;font-family:'Cascadia Code',Consolas,monospace;font-size:.95rem;line-height:1.7;max-width:88%}
+.hunk .f{color:#e0a95c;font-size:.85rem;margin-bottom:.6vh}
+.hunk .add{color:#8fbf7a}
+.hunk .del{color:#d98b7a}
+.hunk .ctx{color:var(--code-muted)}
+
+.cardout{align-self:center;width:min(640px,90%);background:linear-gradient(180deg,#fffaf2,#fbf0dc);
+  border:1.5px solid var(--amber);border-radius:16px;padding:2.4vh 2vw;box-shadow:0 10px 30px rgba(150,100,40,.15)}
+.cardout h3{font-size:1.25rem;color:#7a4a1a;margin-bottom:1.4vh}
+.cardout dl{display:grid;grid-template-columns:auto 1fr;gap:1vh 1.4vw;font-size:1rem}
+.cardout dt{color:var(--muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;padding-top:3px}
+
+.compose{flex:0 0 auto;border-top:1px solid var(--line);background:var(--panel);padding:1.4vh 2vw;
+  display:flex;gap:10px;align-items:flex-end}
+.compose textarea{flex:1;font:inherit;font-size:1.02rem;border:1px solid var(--line);border-radius:12px;
+  padding:1.1vh 1vw;resize:none;min-height:46px;max-height:140px;background:#fff;color:var(--ink)}
+.compose button{border:none;border-radius:12px;padding:1.1vh 1.4vw;font-weight:600}
+.send{background:var(--amber);color:#fff}
+.send:disabled{opacity:.5;cursor:default}
+.mic{background:#fff;border:1px solid var(--line)!important;color:var(--ink)}
+.mic.rec{background:var(--rose);color:#fff;border-color:var(--rose)!important}
+.quick{display:flex;gap:8px;padding:0 2vw 1.2vh;flex-wrap:wrap}
+.quick button{background:transparent;border:1px solid var(--line);border-radius:18px;
+  padding:.5vh .9vw;font-size:.85rem;color:var(--muted)}
+.busy{font-size:.85rem;color:var(--muted);padding:0 2vw 1vh}
+</style>
+</head>
+<body>
+
+<!-- ------------------------------------------------------------------ setup -->
+<div id="setup">
+  <div class="card-setup">
+    <div class="tag">CS3249 &middot; Assignment 2</div>
+    <h1>Handover Check</h1>
+    <p class="lede">A coding agent is about to make a change to your repository. While it
+      works, this asks you what you expect it to do. When it finishes, it compares your
+      answer with the real diff and explains only what you missed. It never edits code.</p>
+
+    <div class="field">
+      <label>Which run?</label>
+      <div class="scenarios" id="scenarios"></div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label for="threshold">Only interrupt me above</label>
+        <input type="number" id="threshold" value="4" min="1" max="20">
+        <div class="hint">Files in the agent's plan. Smaller changes pass silently.</div>
+      </div>
+      <div class="field">
+        <label for="writes">Languages you write without help</label>
+        <input type="text" id="writes" value="Java, Python">
+        <div class="hint">Used to pick analogies, not to judge you.</div>
+      </div>
+    </div>
+
+    <button class="start" id="start">Start the run</button>
+    <div class="provider" id="provider"></div>
+  </div>
+</div>
+
+<!-- ------------------------------------------------------------------- app -->
+<div id="app">
+  <div class="top">
+    <span class="name">Handover Check</span>
+    <span class="phase" id="phaseTag">Phase 1 &middot; predicting</span>
+    <span class="spacer"></span>
+    <button id="voiceBtn" title="Dictate your answers (Chrome)">Voice off</button>
+    <button id="speakBtn" title="Read the CUI's questions aloud">Speak off</button>
+    <button id="restart">New run</button>
+  </div>
+
+  <div class="split">
+    <div class="agent">
+      <div class="hd"><span class="dot" id="agentDot"></span><span id="agentState">Coding agent</span></div>
+      <div class="body" id="agentBody"></div>
+    </div>
+
+    <div class="right">
+      <div class="chat" id="chat"></div>
+      <div class="busy" id="busy"></div>
+      <div class="quick" id="quick"></div>
+      <div class="compose">
+        <textarea id="input" rows="1" placeholder="Type your answer, or press the mic"></textarea>
+        <button class="mic" id="mic" title="Dictate">Mic</button>
+        <button class="send" id="send">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+const $ = (id) => document.getElementById(id);
+const api = async (url, body) => {
+  const res = await fetch(url, body
+    ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+    : undefined);
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || res.statusText);
+  return res.json();
+};
+
+const state = {
+  sessionId: null, scenario: null, ui: null,
+  agentTimer: null, filesDone: 0, approved: false, finished: false,
+  speak: false, listening: false, busy: false,
+};
+
+// ------------------------------------------------------------------ setup ---
+let scenarios = [], chosen = null;
+
+async function loadSetup() {
+  scenarios = await api('/api/scenarios');
+  chosen = scenarios[0]?.id;
+  $('scenarios').innerHTML = scenarios.map((s) => `
+    <button class="scen ${s.id === chosen ? 'sel' : ''}" data-id="${s.id}">
+      <div>
+        <b>${s.title}</b>
+        <span>${s.stack} &middot; the agent plans to touch ${s.planFileCount} files</span>
+      </div>
+    </button>`).join('');
+  $('scenarios').querySelectorAll('.scen').forEach((b) => b.onclick = () => {
+    chosen = b.dataset.id;
+    $('scenarios').querySelectorAll('.scen').forEach((x) => x.classList.toggle('sel', x === b));
+  });
+
+  const h = await api('/api/health');
+  $('provider').textContent = h.live
+    ? `model: ${h.model} · prompts: ${h.promptVersion}`
+    : `running with canned replies (HC_PROVIDER=mock) · prompts: ${h.promptVersion}`;
+}
+
+$('start').onclick = async () => {
+  $('start').disabled = true;
+  try {
+    const writes = $('writes').value.split(',').map((s) => s.trim()).filter(Boolean);
+    const out = await api('/api/session', {
+      scenarioId: chosen,
+      thresholdFiles: Number($('threshold').value),
+      writes,
+    });
+    state.sessionId = out.sessionId;
+    state.scenario = out.scenario;
+    state.ui = out.ui;
+
+    $('setup').style.display = 'none';
+    $('app').classList.add('on');
+
+    sysBubble(`You asked the agent: "${out.scenario.request}"`);
+    cuiBubble(out.reply);
+    renderAgent();
+    if (!out.ui.belowThreshold) startAgent();
+    else { state.finished = true; $('input').disabled = true; $('send').disabled = true; }
+  } catch (e) {
+    alert(e.message);
+    $('start').disabled = false;
+  }
+};
+
+$('restart').onclick = () => location.reload();
+
+// ------------------------------------------------------- simulated agent ---
+// The agent is simulated here, in the client. The server receives the same
+// events it would receive from a real agent hook, so replacing the simulation
+// is a change to who posts to /api/session/:id/agent, not to the engine.
+function startAgent() {
+  const total = state.scenario.planFileCount;
+  const tick = Math.max(1800, (state.scenario.estimatedAgentRunSeconds * 1000) / total / 4);
+  state.agentTimer = setInterval(async () => {
+    if (state.ui?.agent?.status === 'waiting') return;
+    state.filesDone += 1;
+
+    if (state.filesDone === Math.ceil(total / 2) && !state.approved) {
+      clearInterval(state.agentTimer);
+      const out = await api(`/api/session/${state.sessionId}/agent`,
+        { type: 'approval', command: 'npm install nodemailer' });
+      state.ui = out.ui;
+      if (out.reply) cuiBubble(out.reply);
+      renderAgent();
+      return;
+    }
+
+    await api(`/api/session/${state.sessionId}/agent`, { type: 'progress', filesDone: state.filesDone });
+
+    if (state.filesDone >= total) {
+      clearInterval(state.agentTimer);
+      await api(`/api/session/${state.sessionId}/agent`, { type: 'done' });
+      state.ui = { ...state.ui, agent: { ...state.ui.agent, status: 'done' } };
+      renderAgent();
+      sysBubble('The agent has finished.');
+      send('', true);            // advance into reconciliation
+    } else {
+      renderAgent();
+    }
+  }, tick);
+}
+
+async function approve() {
+  state.approved = true;
+  const out = await api(`/api/session/${state.sessionId}/agent`, { type: 'resume' });
+  state.ui = out.ui;
+  if (out.reply) cuiBubble(out.reply);
+  renderAgent();
+  startAgent();
+}
+
+function renderAgent() {
+  const sc = state.scenario, ui = state.ui || {};
+  const status = ui.agent?.status || 'working';
+  const dot = $('agentDot');
+  dot.className = 'dot' + (status === 'waiting' ? ' waiting' : status === 'done' ? ' done' : '');
+  $('agentState').textContent = status === 'waiting' ? 'Coding agent · waiting on you'
+    : status === 'done' ? 'Coding agent · done' : 'Coding agent · working';
+
+  if (status === 'done' && ui.files) {
+    $('agentBody').innerHTML = `<div class="plan">Done. ${ui.files.length} files changed.</div>`
+      + ui.files.map((f) => `<div class="fl ${f.inPlan ? 'done' : 'extra'}">
+          <span class="ck">${f.inPlan ? '&#10003;' : '&#9733;'}</span>${f.path}</div>`).join('');
+    return;
+  }
+
+  // While it works the learner sees a count, never the paths.
+  const rows = [];
+  rows.push(`<div class="plan">Plan: ${sc.planFileCount} files</div>`);
+  for (let i = 0; i < sc.planFileCount; i += 1) {
+    const done = i < state.filesDone;
+    rows.push(`<div class="fl ${done ? 'done' : 'pend'}">
+      <span class="ck">${done ? '&#10003;' : '&#9675;'}</span>${done ? 'file written' : 'pending'}</div>`);
+  }
+  rows.push(`<div class="plan" style="margin-top:1.4vh">Working… ${state.filesDone}/${sc.planFileCount}</div>`);
+  if (status === 'waiting') {
+    rows.push(`<div class="approve">Allow: <b>${ui.agent.pendingApproval}</b>?
+      <div><button id="yes">Allow</button><button class="sec" id="no">Deny</button></div></div>`);
+  }
+  $('agentBody').innerHTML = rows.join('');
+  if (status === 'waiting') {
+    $('yes').onclick = approve;
+    $('no').onclick = approve;
+  }
+}
+
+// -------------------------------------------------------------- rendering ---
+function bubble(cls, who, text) {
+  const d = document.createElement('div');
+  d.className = `b ${cls}`;
+  d.innerHTML = who ? `<span class="who">${who}</span>` : '';
+  d.appendChild(document.createTextNode(text));
+  $('chat').appendChild(d);
+  $('chat').scrollTop = $('chat').scrollHeight;
+  return d;
+}
+const cuiBubble = (t) => { bubble('cui', 'Handover Check', t); maybeSpeak(t); };
+const meBubble = (t) => bubble('me', 'You', t);
+const sysBubble = (t) => bubble('sys', '', t);
+
+function renderOptions(options) {
+  const wrap = document.createElement('div');
+  wrap.className = 'opts';
+  for (const o of [...options, 'both']) {
+    const b = document.createElement('button');
+    b.textContent = o;
+    b.onclick = () => { wrap.remove(); send(o); };
+    wrap.appendChild(b);
+  }
+  $('chat').appendChild(wrap);
+  $('chat').scrollTop = $('chat').scrollHeight;
+}
+
+function renderFiles(ui) {
+  if (!ui.files || !ui.fileScore) return;
+  const s = ui.fileScore;
+  const wrap = document.createElement('div');
+  wrap.className = 'panelfiles';
+  for (const f of ui.files) {
+    const cls = !f.inPlan ? 'extra' : s.hit.includes(f.path) ? 'ok' : 'miss';
+    const mark = !f.inPlan ? '&#9733;' : s.hit.includes(f.path) ? '&#10003;' : '&#8213;';
+    const c = document.createElement('span');
+    c.className = `chip ${cls}`;
+    c.innerHTML = `<span>${mark}</span>`;
+    c.appendChild(document.createTextNode(f.path));
+    c.title = f.role || '';
+    wrap.appendChild(c);
+  }
+  $('chat').appendChild(wrap);
+  $('chat').scrollTop = $('chat').scrollHeight;
+}
+
+function renderCard(card) {
+  const d = document.createElement('div');
+  d.className = 'cardout';
+  const rows = [
+    ['Files', card.files ? `${card.files.total} changed · you predicted ${card.files.predicted} of the ${card.files.planned} planned` : 'not scored'],
+    ['Mechanism', card.mechanism ?? 'not reached'],
+    ['Concept', card.concept ?? 'not reached'],
+    ['Can modify', card.canModify ?? 'not reached'],
+    ...card.unrequested.map((u) => ['Unrequested', `${u.path} — your call`]),
+    ['Say tomorrow', card.sayTomorrow.join(' · ')],
+  ];
+  d.innerHTML = `<h3>${card.feature} — handover card</h3><dl>${
+    rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
+  $('chat').appendChild(d);
+  $('chat').scrollTop = $('chat').scrollHeight;
+}
+
+function renderPhase(ui) {
+  const p2 = ui.phase === 2;
+  $('phaseTag').textContent = p2 ? 'Phase 2 · reconciling' : 'Phase 1 · predicting';
+  $('phaseTag').className = 'phase' + (p2 ? ' p2' : '');
+  $('quick').innerHTML = '';
+  if (!state.finished) {
+    for (const q of (p2 ? ['stop'] : ['skip', 'stop'])) {
+      const b = document.createElement('button');
+      b.textContent = q;
+      b.onclick = () => send(q);
+      $('quick').appendChild(b);
+    }
+  }
+}
+
+// ---------------------------------------------------------------- sending ---
+async function send(text, hidden = false) {
+  if (state.busy || state.finished) return;
+  if (!hidden && !text.trim()) return;
+  state.busy = true;
+  $('send').disabled = true;
+  $('busy').textContent = 'thinking…';
+  if (!hidden) meBubble(text);
+  $('input').value = '';
+
+  try {
+    const out = await api(`/api/session/${state.sessionId}/message`, { text });
+    state.ui = { ...state.ui, ...out.ui };
+    cuiBubble(out.reply);
+    if (out.ui.options) renderOptions(out.ui.options);
+    if (out.ui.fileScore) renderFiles(out.ui);
+    if (out.ui.card) renderCard(out.ui.card);
+    renderPhase(out.ui);
+    renderAgent();
+    if (out.done) {
+      state.finished = true;
+      $('input').disabled = true;
+      $('send').disabled = true;
+      $('quick').innerHTML = '';
+    }
+  } catch (e) {
+    sysBubble(`Error: ${e.message}`);
+  } finally {
+    state.busy = false;
+    if (!state.finished) $('send').disabled = false;
+    $('busy').textContent = '';
+  }
+}
+
+$('send').onclick = () => send($('input').value);
+$('input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send($('input').value); }
+});
+
+// ------------------------------------------------------------------ voice ---
+// Dictation and spoken prompts are a thin layer over the same engine. They are
+// off by default: the interaction is identical without them, and the judge
+// tests run on text.
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recog = null;
+
+if (SR) {
+  recog = new SR();
+  recog.continuous = false;
+  recog.interimResults = true;
+  recog.lang = 'en-GB';
+  recog.onresult = (e) => {
+    const t = [...e.results].map((r) => r[0].transcript).join('');
+    $('input').value = t;
+  };
+  recog.onend = () => { state.listening = false; $('mic').classList.remove('rec'); $('voiceBtn').textContent = 'Voice off'; };
+} else {
+  $('mic').disabled = true;
+  $('mic').title = 'Speech recognition needs Chrome or Edge';
+}
+
+function toggleMic() {
+  if (!recog) return;
+  if (state.listening) { recog.stop(); return; }
+  state.listening = true;
+  $('mic').classList.add('rec');
+  $('voiceBtn').textContent = 'Voice on';
+  recog.start();
+}
+$('mic').onclick = toggleMic;
+$('voiceBtn').onclick = toggleMic;
+
+$('speakBtn').onclick = () => {
+  state.speak = !state.speak;
+  $('speakBtn').textContent = state.speak ? 'Speak on' : 'Speak off';
+  $('speakBtn').classList.toggle('on', state.speak);
+  if (!state.speak) speechSynthesis.cancel();
+};
+
+function maybeSpeak(text) {
+  if (!state.speak || !window.speechSynthesis) return;
+  // Only the question is spoken. Reading a diff aloud is useless.
+  const short = text.split('\n')[0].slice(0, 320);
+  const u = new SpeechSynthesisUtterance(short);
+  u.lang = 'en-GB';
+  u.rate = 1.03;
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
+}
+
+loadSetup().catch((e) => { $('provider').textContent = `Could not reach the server: ${e.message}`; });
+</script>
+</body>
+</html>
