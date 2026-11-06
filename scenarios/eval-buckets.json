@@ -1,0 +1,185 @@
+{
+  "id": "eval-buckets",
+  "title": "Break the eval accuracy down by context length",
+  "stack": "Python + PyTorch",
+  "learnerProfile": "Writes Python and Java. Can read PyTorch but could not write the training or eval loop unaided. Reports these numbers to a research supervisor who asks how they were computed.",
+  "planFileCount": 4,
+  "estimatedAgentRunSeconds": 210,
+
+  "public": {
+    "request": "The single accuracy number is hiding the problem. Break the eval down by context length so I can see where it falls over.",
+    "conventions": "Experiment settings live in src/config/default.yaml and are read once in run_eval.py; nothing else reads the config directly. Metric functions are pure and live in src/eval/metrics.py, take predictions and labels, and return plain dicts. run_eval.py is the only file that touches the filesystem: it writes results.json. scripts/report.py turns results.json into the table that goes in the write-up.",
+    "repoMap": [
+      "src/config/default.yaml",
+      "src/eval/run_eval.py",
+      "src/eval/metrics.py",
+      "src/eval/dataset.py",
+      "src/models/retriever.py",
+      "src/models/encoder.py",
+      "scripts/report.py",
+      "tests/test_metrics.py",
+      "requirements.txt",
+      "README.md"
+    ]
+  },
+
+  "secret": {
+    "plan": {
+      "files": [
+        "src/config/default.yaml",
+        "src/eval/metrics.py",
+        "src/eval/run_eval.py",
+        "scripts/report.py"
+      ]
+    },
+
+    "changes": [
+      {
+        "path": "src/config/default.yaml",
+        "inPlan": true,
+        "status": "modified",
+        "role": "defines the bucket edges in tokens; this is the only place the boundaries are set",
+        "aliases": ["the config", "default yaml", "the settings file"],
+        "hunk": [
+          { "type": "ctx", "text": "eval:" },
+          { "type": "ctx", "text": "  batch_size: 16" },
+          { "type": "add", "text": "  length_buckets: [0, 512, 2048, 4096]" },
+          { "type": "add", "text": "  bucket_average: macro" }
+        ]
+      },
+      {
+        "path": "src/eval/metrics.py",
+        "inPlan": true,
+        "status": "modified",
+        "role": "adds bucket_accuracy(preds, labels, lengths, edges), which groups examples by length and returns per-bucket accuracy plus an overall figure",
+        "aliases": ["metrics", "the metric file", "where the metrics are"],
+        "hunk": [
+          { "type": "add", "text": "def bucket_accuracy(preds, labels, lengths, edges, average='macro'):" },
+          { "type": "add", "text": "    buckets = defaultdict(list)" },
+          { "type": "add", "text": "    for p, l, n in zip(preds, labels, lengths):" },
+          { "type": "add", "text": "        buckets[_edge_for(n, edges)].append(p == l)" },
+          { "type": "add", "text": "    per_bucket = {k: mean(v) for k, v in buckets.items()}" },
+          { "type": "add", "text": "    # macro: every bucket counts equally, regardless of how many examples it holds" },
+          { "type": "add", "text": "    overall = mean(per_bucket.values()) if average == 'macro' else mean(flatten(buckets.values()))" },
+          { "type": "add", "text": "    return {'per_bucket': per_bucket, 'overall': overall}" }
+        ]
+      },
+      {
+        "path": "src/eval/run_eval.py",
+        "inPlan": true,
+        "status": "modified",
+        "role": "reads the new config keys, passes example lengths into the metric, and writes the per-bucket block into results.json",
+        "aliases": ["run eval", "the eval script", "the runner"],
+        "hunk": [
+          { "type": "ctx", "text": "preds, labels = predict(model, loader)" },
+          { "type": "del", "text": "results = {'accuracy': accuracy(preds, labels)}" },
+          { "type": "add", "text": "lengths = [len(x.tokens) for x in loader.dataset]" },
+          { "type": "add", "text": "results = metrics.bucket_accuracy(" },
+          { "type": "add", "text": "    preds, labels, lengths," },
+          { "type": "add", "text": "    edges=cfg['eval']['length_buckets']," },
+          { "type": "add", "text": "    average=cfg['eval']['bucket_average'])" }
+        ]
+      },
+      {
+        "path": "scripts/report.py",
+        "inPlan": true,
+        "status": "modified",
+        "role": "renders one row per bucket instead of a single accuracy line",
+        "aliases": ["the report script", "report py", "the table"],
+        "hunk": [
+          { "type": "del", "text": "print(f\"accuracy: {results['accuracy']:.3f}\")" },
+          { "type": "add", "text": "for edge, acc in sorted(results['per_bucket'].items()):" },
+          { "type": "add", "text": "    print(f\"<= {edge:>5} tokens   {acc:.3f}\")" }
+        ]
+      },
+      {
+        "path": "src/eval/cache.py",
+        "inPlan": false,
+        "status": "added",
+        "role": "not requested; the agent added it on its own. Memoises model outputs to .cache/ keyed on the input text, so re-runs skip the forward pass",
+        "aliases": ["the cache", "cache py", "the caching file"],
+        "hunk": [
+          { "type": "add", "text": "def cached_predict(model, batch):" },
+          { "type": "add", "text": "    key = sha1(''.join(batch.texts).encode()).hexdigest()" },
+          { "type": "add", "text": "    path = Path('.cache') / f'{key}.pt'" },
+          { "type": "add", "text": "    if path.exists():" },
+          { "type": "add", "text": "        return torch.load(path)          # note: key does not include the model checkpoint" },
+          { "type": "add", "text": "    out = model(batch)" },
+          { "type": "add", "text": "    torch.save(out, path)" },
+          { "type": "add", "text": "    return out" }
+        ]
+      }
+    ],
+
+    "dataPath": [
+      { "from": "src/config/default.yaml", "to": "src/eval/run_eval.py", "via": "length_buckets and bucket_average are read once at startup" },
+      { "from": "src/eval/dataset.py", "to": "src/eval/run_eval.py", "via": "supplies the examples, whose token counts become the lengths" },
+      { "from": "src/eval/run_eval.py", "to": "src/eval/metrics.py", "via": "calls bucket_accuracy with preds, labels, lengths and edges" },
+      { "from": "src/eval/metrics.py", "to": "src/eval/run_eval.py", "via": "returns per_bucket and overall" },
+      { "from": "src/eval/run_eval.py", "to": "results.json", "via": "writes the per-bucket block" },
+      { "from": "results.json", "to": "scripts/report.py", "via": "rendered as one row per bucket" }
+    ],
+
+    "mechanismKeyPoints": [
+      {
+        "id": "edges-in-config",
+        "statement": "The bucket boundaries are set in the config, not in the metric.",
+        "why": "The metric stays pure and reusable, and changing the buckets is a config edit, not a code edit."
+      },
+      {
+        "id": "lengths-from-dataset",
+        "statement": "The length each example is bucketed by comes from the dataset, computed in run_eval.py, not from the model.",
+        "why": "It is a property of the input, so it must be read before prediction."
+      },
+      {
+        "id": "macro-average",
+        "statement": "The overall figure is a macro average: every bucket counts equally no matter how many examples it holds.",
+        "why": "It is not the same number as the old accuracy. A small, hard bucket now pulls the headline figure down, which is the first thing a supervisor will ask about."
+      },
+      {
+        "id": "results-json-is-the-seam",
+        "statement": "run_eval.py writes results.json and report.py reads it; they are not coupled any other way.",
+        "why": "It is why the report script had to change separately, and where to look when the table disagrees with the run."
+      }
+    ],
+
+    "concepts": [
+      {
+        "id": "macro-vs-micro",
+        "name": "Macro versus micro averaging",
+        "prereqQuestion": "Before I explain what it does to your headline number - do you know the difference between a macro and a micro average?",
+        "shortExplanation": "Macro averages the per-bucket accuracies, so each bucket counts once. Micro pools every example, so big buckets dominate. The agent chose macro, so your overall number is no longer comparable with the one you reported last week.",
+        "longExplanation": "Micro average pools all the examples together and divides once: a bucket with ten thousand examples moves the number far more than one with fifty. Macro average works out the accuracy inside each bucket first, then averages those, so every bucket carries the same weight however small it is. The agent set bucket_average: macro. That means your long-context bucket, which is small and hard, now drags the overall figure down, and the overall figure is not the same quantity you reported before.",
+        "analogies": {
+          "default": "Micro is the average mark across all students in a year group. Macro is the average of each class's average, so a class of five counts as much as a class of fifty."
+        }
+      },
+      {
+        "id": "cache-key-completeness",
+        "name": "What belongs in a cache key",
+        "prereqQuestion": "One thing to check first - what do you think should be part of the key when you cache a model's output?",
+        "shortExplanation": "Everything that can change the output. This key is the input text only, so swapping the checkpoint and re-running silently returns the old model's predictions.",
+        "longExplanation": "A cache is only safe when the key covers every input that can change the result. Here the key is a hash of the batch text, which leaves out the model checkpoint, the decoding settings and the random seed. Change the checkpoint, re-run, and the cache hands back the previous model's outputs with no warning. That is a result you could report and not be able to reproduce.",
+        "analogies": {
+          "default": "It is like filing results under the question only, when the answer also depended on which textbook you used."
+        }
+      }
+    ],
+
+    "finalCheck": {
+      "question": "Last one. Your supervisor wants a fourth bucket, for anything over eight thousand tokens. Which file do you edit?",
+      "answerPath": "src/config/default.yaml",
+      "answerDetail": "add 8192 to the length_buckets list; nothing in the metric or the runner needs to change",
+      "distractors": [
+        {
+          "path": "src/eval/metrics.py",
+          "note": "It reads the edges, but it does not define them. That is the point of keeping the metric pure."
+        },
+        {
+          "path": "src/eval/run_eval.py",
+          "note": "It passes the edges through from the config. Editing it would work, but it would put a setting in code that this repo keeps in config."
+        }
+      ]
+    }
+  }
+}

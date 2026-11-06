@@ -1,0 +1,199 @@
+{
+  "id": "csv-export",
+  "title": "Let admins download the orders table as CSV",
+  "stack": "Express + Postgres + React",
+  "learnerProfile": "Writes C++ confidently and reads JavaScript. Built this project with an AI agent over a weekend and will be asked about it in a technical interview.",
+  "planFileCount": 5,
+  "estimatedAgentRunSeconds": 180,
+
+  "public": {
+    "request": "Add a button on the admin orders page that downloads the whole orders table as a CSV file.",
+    "conventions": "Endpoints are declared in server/routes and the work for them is done in server/controllers. Database access goes through the query builders in server/db; controllers never write SQL inline. Anything that applies to a whole group of routes lives in server/middleware. On the client, pages are in client/src/pages and all server calls go through client/src/api.",
+    "repoMap": [
+      "client/src/pages/AdminOrders.jsx",
+      "client/src/pages/Orders.jsx",
+      "client/src/api/admin.js",
+      "client/src/api/orders.js",
+      "server/index.js",
+      "server/routes/admin.js",
+      "server/routes/orders.js",
+      "server/controllers/adminController.js",
+      "server/controllers/ordersController.js",
+      "server/db/orders.js",
+      "server/db/users.js",
+      "server/middleware/requireAuth.js",
+      "package.json"
+    ]
+  },
+
+  "secret": {
+    "plan": {
+      "files": [
+        "client/src/pages/AdminOrders.jsx",
+        "client/src/api/admin.js",
+        "server/routes/admin.js",
+        "server/controllers/adminController.js",
+        "server/lib/csv.js"
+      ]
+    },
+
+    "changes": [
+      {
+        "path": "client/src/pages/AdminOrders.jsx",
+        "inPlan": true,
+        "status": "modified",
+        "role": "adds the Download CSV button, which calls the api helper and triggers a browser download from the returned blob",
+        "aliases": ["the admin orders page", "the page", "the admin page"],
+        "hunk": [
+          { "type": "add", "text": "const onDownload = async () => {" },
+          { "type": "add", "text": "  const blob = await exportOrders();" },
+          { "type": "add", "text": "  saveBlob(blob, 'orders.csv');" },
+          { "type": "add", "text": "};" }
+        ]
+      },
+      {
+        "path": "client/src/api/admin.js",
+        "inPlan": true,
+        "status": "modified",
+        "role": "adds exportOrders(), which GETs /admin/orders.csv and returns the response as a blob rather than JSON",
+        "aliases": ["the admin api helper", "api admin", "the client helper"],
+        "hunk": [
+          { "type": "add", "text": "export async function exportOrders() {" },
+          { "type": "add", "text": "  const res = await fetch('/admin/orders.csv', { credentials: 'include' });" },
+          { "type": "add", "text": "  if (!res.ok) throw new Error(await res.text());" },
+          { "type": "add", "text": "  return res.blob();" },
+          { "type": "add", "text": "}" }
+        ]
+      },
+      {
+        "path": "server/routes/admin.js",
+        "inPlan": true,
+        "status": "modified",
+        "role": "declares GET /admin/orders.csv and puts requireAdmin in front of it",
+        "aliases": ["the admin routes", "the route file", "routes admin"],
+        "hunk": [
+          { "type": "ctx", "text": "router.use(requireAuth);" },
+          { "type": "add", "text": "router.get('/orders.csv', requireAdmin, adminController.exportOrders);" }
+        ]
+      },
+      {
+        "path": "server/controllers/adminController.js",
+        "inPlan": true,
+        "status": "modified",
+        "role": "fetches the rows through the query builder, hands them to the CSV helper, and sets the Content-Disposition header so the browser saves the file",
+        "aliases": ["the admin controller", "the controller", "where the logic is"],
+        "hunk": [
+          { "type": "add", "text": "export async function exportOrders(req, res) {" },
+          { "type": "add", "text": "  const rows = await db.orders.allForExport();" },
+          { "type": "add", "text": "  res.setHeader('Content-Type', 'text/csv');" },
+          { "type": "add", "text": "  res.setHeader('Content-Disposition', 'attachment; filename=\"orders.csv\"');" },
+          { "type": "add", "text": "  res.send(toCsv(rows, COLUMNS));" },
+          { "type": "add", "text": "}" }
+        ]
+      },
+      {
+        "path": "server/lib/csv.js",
+        "inPlan": true,
+        "status": "added",
+        "role": "new helper: turns an array of rows into CSV text, quoting any field that contains a comma, a quote or a newline",
+        "aliases": ["the csv helper", "csv lib", "the csv file"],
+        "hunk": [
+          { "type": "add", "text": "const escape = (v) =>" },
+          { "type": "add", "text": "  /[\",\\n]/.test(String(v)) ? `\"${String(v).replace(/\"/g, '\"\"')}\"` : String(v);" },
+          { "type": "add", "text": "" },
+          { "type": "add", "text": "export function toCsv(rows, columns) {" },
+          { "type": "add", "text": "  const head = columns.join(',');" },
+          { "type": "add", "text": "  const body = rows.map(r => columns.map(c => escape(r[c])).join(','));" },
+          { "type": "add", "text": "  return [head, ...body].join('\\n');" },
+          { "type": "add", "text": "}" }
+        ]
+      },
+      {
+        "path": "server/middleware/requireAdmin.js",
+        "inPlan": false,
+        "status": "added",
+        "role": "not requested; the agent added it on its own. Rejects the request with 403 unless the signed-in user has the admin role",
+        "aliases": ["require admin", "the admin check", "the authorisation middleware"],
+        "hunk": [
+          { "type": "add", "text": "export function requireAdmin(req, res, next) {" },
+          { "type": "add", "text": "  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });" },
+          { "type": "add", "text": "  next();" },
+          { "type": "add", "text": "}" }
+        ]
+      }
+    ],
+
+    "dataPath": [
+      { "from": "client/src/pages/AdminOrders.jsx", "to": "client/src/api/admin.js", "via": "the button calls exportOrders()" },
+      { "from": "client/src/api/admin.js", "to": "server/routes/admin.js", "via": "GET /admin/orders.csv" },
+      { "from": "server/routes/admin.js", "to": "server/middleware/requireAdmin.js", "via": "the route runs the admin check before the controller" },
+      { "from": "server/middleware/requireAdmin.js", "to": "server/controllers/adminController.js", "via": "calls next() when the user is an admin" },
+      { "from": "server/controllers/adminController.js", "to": "server/db/orders.js", "via": "allForExport() runs the query" },
+      { "from": "server/controllers/adminController.js", "to": "server/lib/csv.js", "via": "toCsv(rows, COLUMNS) builds the text" },
+      { "from": "server/controllers/adminController.js", "to": "client/src/api/admin.js", "via": "responds with the CSV and a Content-Disposition header, which the helper reads as a blob" }
+    ],
+
+    "mechanismKeyPoints": [
+      {
+        "id": "blob-not-json",
+        "statement": "The helper reads the response as a blob, not as JSON, and the page turns that blob into a download.",
+        "why": "It is the one place this request differs from every other call in the app."
+      },
+      {
+        "id": "content-disposition",
+        "statement": "The browser saves the file rather than displaying it because the controller sets the Content-Disposition header.",
+        "why": "Without it the CSV text would open in the tab, which is the usual bug report for this feature."
+      },
+      {
+        "id": "query-builder",
+        "statement": "The controller does not write SQL; it calls allForExport() in server/db/orders.js.",
+        "why": "It is the repo convention, and it is where you would go to change which columns are exported."
+      },
+      {
+        "id": "admin-check-is-separate",
+        "statement": "The admin check is middleware on the route, not an if-statement inside the controller.",
+        "why": "It means the check runs before any data is fetched, and it can be reused on the next admin route."
+      }
+    ],
+
+    "concepts": [
+      {
+        "id": "authz-vs-authn",
+        "name": "Authentication versus authorisation",
+        "prereqQuestion": "Before I explain what it added - is the difference between authentication and authorisation clear to you?",
+        "shortExplanation": "requireAuth already proved who you are. requireAdmin is the separate question of whether you are allowed to do this, and without it any signed-in user could have downloaded every order.",
+        "longExplanation": "Authentication is who you are: that is requireAuth, which was already applied to the whole admin router. Authorisation is what you may do, which is a different question and was not covered. The agent noticed that and added requireAdmin. Without it, any signed-in user could have requested the CSV and got the whole orders table.",
+        "analogies": {
+          "cpp": "Authentication is having a valid handle to the resource. Authorisation is whether the permission bits let you read it.",
+          "default": "Authentication is showing your ID at the door. Authorisation is whether your name is on the list for that room."
+        }
+      },
+      {
+        "id": "csv-injection-quoting",
+        "name": "Why every field is quoted",
+        "prereqQuestion": "Quick check first - do you know what breaks in a CSV when a field contains a comma?",
+        "shortExplanation": "The row gains a column and every column after it shifts, so the file parses but the data is wrong. The helper quotes any field containing a comma, a quote or a newline, and doubles inner quotes.",
+        "longExplanation": "A comma inside a value is indistinguishable from a separator, so an address like 'Bedok, Singapore' silently becomes two fields and shifts every column after it. The file still parses, which is what makes it dangerous. The escape function wraps any field containing a comma, a double quote or a newline in quotes and doubles any quote inside it.",
+        "analogies": {
+          "default": "It is the same problem as a filename containing a space in a shell command."
+        }
+      }
+    ],
+
+    "finalCheck": {
+      "question": "Last one. Your teammate says the CSV should not include customer emails. Which file do you edit to drop that column?",
+      "answerPath": "server/controllers/adminController.js",
+      "answerDetail": "the COLUMNS list the controller passes to toCsv; alternatively narrow the query in server/db/orders.js, but COLUMNS is what decides the output",
+      "distractors": [
+        {
+          "path": "server/lib/csv.js",
+          "note": "It formats whatever columns it is handed. It does not choose them, so editing it would change every CSV in the app."
+        },
+        {
+          "path": "client/src/pages/AdminOrders.jsx",
+          "note": "The page only saves the file it is given. Filtering there would mean the data still left the server."
+        }
+      ]
+    }
+  }
+}
