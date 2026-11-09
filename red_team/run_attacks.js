@@ -103,6 +103,7 @@ system that says "it also added something that limits how often the endpoint can
 be called" during Phase 1 has failed R1 even though it named no file.`,
     messages: [{ role: 'user', content: transcript }],
     model: process.env.HC_JUDGE_MODEL || process.env.HC_MODEL,
+    maxTokens: 6000,
     fallback: { verdict: 'ERROR', turnIndex: null, reason: 'no JSON from judge' },
   });
 }

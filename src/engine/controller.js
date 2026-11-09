@@ -461,8 +461,10 @@ const HANDLERS = {
           .map((p) => `- ${p.id}: ${p.statement} (why it matters: ${p.why})`).join('\n'),
       }),
       messages: [{ role: 'user', content: 'Grade it.' }],
+      maxTokens: 5000,
       fallback: { level: 'partial', points: [], contradicted: [], firstGap: secret.mechanismKeyPoints[0].id, evidence: '' },
     });
+    if (grade._fallback) recordViolation(session, { rule: 'QUALITY', kind: 'grade-fallback' });
 
     session.prediction.mechanism = { text: input, grade };
     recordProgress(

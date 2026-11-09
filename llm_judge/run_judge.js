@@ -81,6 +81,7 @@ async function judgeOne(criterionId, version, convo) {
       content: `Transcript to judge:\n\n${renderTranscript(convo)}`,
     }],
     model: JUDGE_MODEL,
+    maxTokens: 6000,
     fallback: { verdict: 'ERROR', turnIndex: null, quote: '', reason: 'judge returned no JSON' },
   });
 

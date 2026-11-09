@@ -75,11 +75,25 @@ export async function complete({
     messages: messages.map((m) => ({ role: m.role, content: m.content })),
   });
 
-  return res.content
+  const text = res.content
     .filter((b) => b.type === 'text')
     .map((b) => b.text)
     .join('')
     .trim();
+
+  // Reasoning models spend output tokens on thinking before they emit any
+  // text. If max_tokens runs out first the call returns 200 with an empty
+  // string, which every caller then treats as a reply. Fail loudly instead:
+  // a silent empty reply is how a grading call degrades to its fallback
+  // without anybody noticing.
+  if (!text && res.stop_reason === 'max_tokens') {
+    throw new Error(
+      `Model produced no text: the ${maxTokens} token budget was consumed before output `
+      + `(${res.usage?.output_tokens_details?.thinking_tokens ?? '?'} thinking tokens). `
+      + 'Raise maxTokens for this call.',
+    );
+  }
+  return text;
 }
 
 /**
@@ -93,13 +107,15 @@ export async function complete({
  * @param {string} opts.system
  * @param {Msg[]} opts.messages
  * @param {object} [opts.fallback] returned if parsing fails, so a bad reply
- *   degrades the grade rather than crashing the learner's session
+ *   degrades the grade rather than crashing the learner's session. It comes
+ *   back tagged with `_fallback: true` and a warning on stderr, because a
+ *   silent degradation is indistinguishable from a real grade.
  * @param {number} [opts.maxTokens]
  * @param {string} [opts.model]
  * @returns {Promise<any>}
  */
 export async function completeJSON({
-  system, messages, fallback = null, maxTokens = 700, model = MODEL,
+  system, messages, fallback = null, maxTokens = 4000, model = MODEL,
 }) {
   if (PROVIDER === 'mock') return mockJSON({ system, messages, fallback });
 
@@ -113,7 +129,13 @@ export async function completeJSON({
 
   const parsed = extractJSON(text);
   if (parsed === undefined) {
-    if (fallback !== null) return fallback;
+    if (fallback !== null) {
+      // Announce it. A fallback that nobody sees is a result nobody can trust:
+      // every conversation in the first judge run was graded by this path
+      // without a word of warning.
+      console.warn(`[provider] completeJSON fell back to the default. Reply began: ${text.slice(0, 120)}`);
+      return { ...fallback, _fallback: true };
+    }
     throw new Error(`Model did not return JSON. Got: ${text.slice(0, 200)}`);
   }
   return parsed;
