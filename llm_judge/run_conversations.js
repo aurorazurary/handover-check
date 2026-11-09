@@ -76,7 +76,10 @@ markdown.`;
     messages.unshift({ role: 'user', content: '(the tool has just opened)' });
   }
 
-  const out = await complete({ system, messages, temperature: 0.9, maxTokens: 160 });
+  // 1500 is a ceiling: the persona is told to reply in one or two sentences.
+  // Sizing the budget to the expected reply leaves no room to think and
+  // returns an empty string.
+  const out = await complete({ system, messages, temperature: 0.9, maxTokens: 1500 });
   const line = out.replace(/^["']|["']$/g, '').trim();
   // A persona that returns nothing would be sent as an empty user message,
   // which the API rejects. Treat silence as a shrug rather than aborting the run.

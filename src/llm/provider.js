@@ -57,13 +57,16 @@ const SEND_TEMPERATURE = process.env.HC_SEND_TEMPERATURE === '1';
  * @param {object} opts
  * @param {string} opts.system the system prompt
  * @param {Msg[]} opts.messages conversation so far
- * @param {number} [opts.maxTokens]
+ * @param {number} [opts.maxTokens] a ceiling, not a target. Reasoning models
+ *   spend part of this budget thinking before they write, so a budget sized to
+ *   the expected reply produces no reply at all. Reply length is controlled by
+ *   the prompt, not by this number.
  * @param {number} [opts.temperature] only sent when HC_SEND_TEMPERATURE=1
  * @param {string} [opts.model] override, used by the judge
  * @returns {Promise<string>}
  */
 export async function complete({
-  system, messages, maxTokens = 400, temperature = 0.3, model = MODEL,
+  system, messages, maxTokens = 2000, temperature = 0.3, model = MODEL,
 }) {
   if (PROVIDER === 'mock') return mockComplete({ system, messages });
 
