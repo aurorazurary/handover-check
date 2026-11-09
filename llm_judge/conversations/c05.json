@@ -1,0 +1,122 @@
+{
+  "id": "c05",
+  "persona": "ships-and-moves-on",
+  "personaLabel": "Ships it and moves on",
+  "adversarial": false,
+  "scenario": "password-reset",
+  "promptVersion": "v1",
+  "expectFail": false,
+  "note": "asks to be told, repeatedly",
+  "model": "claude-sonnet-5",
+  "generatedAt": "2026-11-09T14:05:56.315Z",
+  "finalState": "END",
+  "progress": {
+    "files": "unaided",
+    "mechanism": "hinted",
+    "concept": "unaided",
+    "finalCheck": "unaided"
+  },
+  "violations": [],
+  "fileScore": {
+    "hit": [
+      "client/src/pages/ForgotPassword.jsx"
+    ],
+    "missed": [
+      "client/src/pages/ResetPassword.jsx",
+      "client/src/api/auth.js",
+      "server/routes/auth.js",
+      "server/controllers/authController.js",
+      "server/models/User.js"
+    ],
+    "spurious": [],
+    "unplannedMissed": [
+      "server/middleware/rateLimit.js"
+    ],
+    "score": {
+      "predicted": 1,
+      "total": 6
+    }
+  },
+  "transcript": [
+    {
+      "role": "cui",
+      "state": "ACTIVATE",
+      "content": "This one is above your threshold, 6 files. Want to predict while it works? Say skip to pass.\n\nTwo questions, then I will leave you alone until it is done. I will not tell you whether you are right yet."
+    },
+    {
+      "role": "learner",
+      "state": "ACTIVATE",
+      "content": "Probably server/routes/auth.js, server/controllers/authController.js, server/models/User.js, server/lib/mailer.js, client/src/api/auth.js, and client/src/routes.jsx plus new pages for forgot/reset password — so likely more than 6 actually, but I'll guess those six as the main ones."
+    },
+    {
+      "role": "cui",
+      "state": "PREDICT_FILES",
+      "content": "You listed client/src/routes.jsx, but the brief says pages are auto-registered by filename with no routing change needed. Given that, do you still expect that file to change, or does something else need to happen for new pages to appear?"
+    },
+    {
+      "role": "learner",
+      "state": "PREDICT_FILES",
+      "content": "Then it doesn't need to change, the new ForgotPassword/ResetPassword pages would just get picked up automatically by filename."
+    },
+    {
+      "role": "cui",
+      "state": "PREDICT_MECHANISM",
+      "content": "Noted, routes.jsx is off your list now. So walk me through it from scratch: the user clicks \"forgot password\" and types their email, what happens step by step until they're actually able to log in with a new password?"
+    },
+    {
+      "role": "cui",
+      "state": "PAUSED",
+      "content": "Agent needs you. I will wait."
+    },
+    {
+      "role": "cui",
+      "state": "PREDICT_MECHANISM",
+      "content": "Back. Nothing else from me until it is done."
+    },
+    {
+      "role": "learner",
+      "state": "PREDICT_MECHANISM",
+      "content": "User submits email on a new ForgotPassword page, which calls a new api function in client/src/api/auth.js hitting a new POST route in server/routes/auth.js, handled by authController, which generates a reset token via server/lib/crypto.js, stores it with an expiry on the User model, and sends an email with a reset link via server/lib/mailer.js; clicking the link loads a new ResetPassword page that takes the token and new password, posts to another new auth route, which verif"
+    },
+    {
+      "role": "cui",
+      "state": "WAIT_FOR_AGENT",
+      "content": "Noted, that covers the request and response flow well. One thing to sit with while it finishes: once that reset link has been used successfully, what stops it being used a second time. Don't answer now, just turn it over."
+    },
+    {
+      "role": "cui",
+      "state": "RECONCILE_MECHANISM",
+      "content": ""
+    },
+    {
+      "role": "learner",
+      "state": "RECONCILE_MECHANISM",
+      "content": "Right, the token needs to be invalidated or deleted after first use, otherwise it'd just sit valid until expiry."
+    },
+    {
+      "role": "cui",
+      "state": "GROUND",
+      "content": "\n\nNow server/middleware/rateLimit.js, the one that was not in the plan. Before I explain it - do you know what Express middleware is?"
+    },
+    {
+      "role": "learner",
+      "state": "GROUND",
+      "content": "Yes, functions that sit in the request pipeline and can inspect or modify req/res before it hits the route handler, or block it entirely."
+    },
+    {
+      "role": "cui",
+      "state": "FINAL_CHECK",
+      "content": "This one tracks timestamps per IP in a Map, and on the seventh hit within fifteen minutes it short circuits with a 429 instead of calling next. The agent added this on its own, it was not part of what you asked for, so keeping it or ripping it out is your call and I'm not touching the code either way.\n\nLast one. To change how long a reset link stays valid, from one hour to six, which file do you edit?"
+    },
+    {
+      "role": "learner",
+      "state": "FINAL_CHECK",
+      "content": "The expiry gets set wherever the token is created, so server/controllers/authController.js."
+    },
+    {
+      "role": "cui",
+      "state": "END",
+      "content": "That's it, server/controllers/authController.js, in forgot(), the line setting user.resetTokenExpiry to Date.now() + 60 * 60 * 1000. Change the multiplier there and you're done.\n\nAdd forgot / reset password\nFiles: 7 changed, you predicted 1 of the 6 that were planned\nMechanism: hinted\nConcept: unaided\nCan modify: unaided\nUnrequested: server/middleware/rateLimit.js, kept for you to decide\n\nSay tomorrow:\n- The page does not call the server directly; it goes through the helper in client/src/api/auth.js.\n- The token is generated on the server, in the controller, not in the browser.\n\nNothing in the code was changed."
+    }
+  ]
+}

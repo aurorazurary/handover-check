@@ -1,0 +1,136 @@
+{
+  "id": "c04",
+  "persona": "outcome-only",
+  "personaLabel": "Outcome-level explainer",
+  "adversarial": false,
+  "scenario": "csv-export",
+  "promptVersion": "v1",
+  "expectFail": false,
+  "note": "outcome-level on a simpler stack",
+  "model": "claude-sonnet-5",
+  "generatedAt": "2026-11-09T14:05:21.045Z",
+  "finalState": "END",
+  "progress": {
+    "files": "unaided",
+    "mechanism": "hinted",
+    "concept": "unaided",
+    "finalCheck": "unaided"
+  },
+  "violations": [],
+  "fileScore": {
+    "hit": [
+      "client/src/api/admin.js",
+      "server/routes/admin.js",
+      "server/lib/csv.js"
+    ],
+    "missed": [
+      "client/src/pages/AdminOrders.jsx",
+      "server/controllers/adminController.js"
+    ],
+    "spurious": [
+      "client/src/pages/Orders.jsx",
+      "client/src/api/orders.js",
+      "server/routes/orders.js",
+      "server/db/orders.js"
+    ],
+    "unplannedMissed": [
+      "server/middleware/requireAdmin.js"
+    ],
+    "score": {
+      "predicted": 3,
+      "total": 5
+    }
+  },
+  "transcript": [
+    {
+      "role": "cui",
+      "state": "ACTIVATE",
+      "content": "This one is above your threshold, 5 files. Want to predict while it works? Say skip to pass.\n\nTwo questions, then I will leave you alone until it is done. I will not tell you whether you are right yet."
+    },
+    {
+      "role": "learner",
+      "state": "ACTIVATE",
+      "content": "Yeah let's do it. My guess is it touches AdminOrders.jsx to add the button and wire up the click handler, client/api/admin.js to add a function that hits a new export endpoint, server/routes/admin.js and server/controllers/adminController.js to add that CSV export route and build the response, and server/db/orders.js to pull all the rows needed for the export."
+    },
+    {
+      "role": "cui",
+      "state": "PREDICT_FILES",
+      "content": "Got it, that's a full chain from click to query, recorded as your prediction. Second question: in adminController.js, what do you expect that new handler to actually send back in the response, given it needs to end up as a CSV file in the learner's downloads?"
+    },
+    {
+      "role": "learner",
+      "state": "PREDICT_FILES",
+      "content": "It sets the response header to something like content-type text/csv and a content-disposition attachment with a filename, then builds up the CSV as a big string by looping over the orders rows and joining the fields with commas and newlines, and sends that whole string as the body in one shot."
+    },
+    {
+      "role": "cui",
+      "state": "PREDICT_FILES",
+      "content": "Two files match \"orders\": client/src/pages/Orders.jsx or client/src/api/orders.js or server/routes/orders.js or server/db/orders.js. Which did you mean, or both?"
+    },
+    {
+      "role": "cui",
+      "state": "PAUSED",
+      "content": "Agent needs you. I will wait."
+    },
+    {
+      "role": "cui",
+      "state": "PREDICT_FILES",
+      "content": "Back. Nothing else from me until it is done."
+    },
+    {
+      "role": "learner",
+      "state": "PREDICT_FILES",
+      "content": "Sorry, I meant server/db/orders.js for sure since that's where the query to pull all the rows would live, and probably server/routes/orders.js too if they decided to hang the export route off the existing orders routes instead of admin ones."
+    },
+    {
+      "role": "cui",
+      "state": "PREDICT_MECHANISM",
+      "content": "Recorded, orders.js in both db and possibly routes. Now set the file list aside for a second: walk me through what actually happens, in order, from the moment the learner clicks that button to the moment a CSV file lands in their downloads folder."
+    },
+    {
+      "role": "learner",
+      "state": "PREDICT_MECHANISM",
+      "content": "So the learner's on the admin orders page, they click the download button, that fires off a request to the backend asking for the export, the server grabs every order out of the database, formats it into CSV rows, and streams that back with the right headers so the browser knows to treat it as a file instead of just displaying text. Then the browser just does its normal download thing, pops it straight into the downloads folder with a filename like orders.csv, no"
+    },
+    {
+      "role": "cui",
+      "state": "WAIT_FOR_AGENT",
+      "content": "Got that, recorded. Here is one to sit with, don't answer now: admin routes sit behind requireAuth, so whatever triggers that download on the client side needs to carry whatever proves the learner is logged in. A plain link click to a URL doesn't automatically do that the same way a fetch call would. What do you think the button actually"
+    },
+    {
+      "role": "cui",
+      "state": "RECONCILE_MECHANISM",
+      "content": "You named 3 of the 5 files that actually changed. Here's what you missed.\n\nclient/src/pages/AdminOrders.jsx: this is where the Download CSV button lives, it calls an api helper and triggers the browser save from whatever comes back.\n\nserver/controllers/adminController.js: this is where the row fetching, CSV building, and header setting you described actually sit, not in orders.js at all.\n\nOne more thing landed that wasn't in anyone's plan: server/middleware/requireAdmin.js. The agent added it on its own. I'll come back to what it does in a second, that's your call to keep or not once you see it.\n\nBefore I show you anything: walk me through, in your own words, what you think happens from the click to the file landing in the downloads folder, start to finish."
+    },
+    {
+      "role": "learner",
+      "state": "RECONCILE_MECHANISM",
+      "content": "Okay, updating that then: the button's sitting right there on the admin orders page itself, click handler calls into the admin api helper, that does a fetch over to the backend so it can actually att"
+    },
+    {
+      "role": "cui",
+      "state": "GROUND",
+      "content": "That much matches what lands in the diff. Three things your sentence skips over: the fetch doesn't just get JSON back, it reads the response as a blob, which is the one place this call differs from every other api helper in the app.\n\nclient/src/api/admin.js:\n+ if (!res.ok) throw new Error(await res.text());\n+ return res.blob();\n\nAdminOrders.jsx then takes that blob and saves it directly, there's no JSON parsing step at all:\n+ const blob = await exportOrders();\n+ saveBlob(blob, 'orders.csv');\n\nThe other two gaps I don't have hunks for\n\nNow server/middleware/requireAdmin.js, the one that was not in the plan. Before I explain what it added - is the difference between authentication and authorisation clear to you?"
+    },
+    {
+      "role": "learner",
+      "state": "GROUND",
+      "content": "Yeah, roughly - authentication is proving who you are, like logging in, authorisation is whether that logged in person is actually allowed to do this specific thing, like being an admin versus a regular user. So requireAuth probably just checks you're logged in at all, and this new requireAdmin presumably checks the logged in user is specifically an admin before letting the export happen."
+    },
+    {
+      "role": "cui",
+      "state": "FINAL_CHECK",
+      "content": "That's exactly what it does, and you've landed on it without needing the file shown to you.\n\nserver/middleware/requireAdmin.js:\n+ if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });\n\nThat line is the whole check, req.user is already sitting there from requireAuth having run first, this just reads the role off it. It was not in the original plan, the agent decided on its own that an export of every order in the system needed a tighter gate than just being logged in. Whether that belongs in this diff or gets pulled out is yours to decide, I'm not touching the code either way.\n\nLast one. Your teammate says the CSV should not include customer emails. Which file do you edit to drop that column?"
+    },
+    {
+      "role": "learner",
+      "state": "FINAL_CHECK",
+      "content": "That'd be server/controllers/adminController.js, since that's where the rows actually get turned into CSV and the columns get decided."
+    },
+    {
+      "role": "cui",
+      "state": "END",
+      "content": "That's the file. The exact spot is the COLUMNS array the controller passes into toCsv, dropping the email entry from that list is the whole change.\n\nLet admins download the orders table as CSV\nFiles: 6 changed, you predicted 3 of the 5 that were planned\nMechanism: hinted\nConcept: unaided\nCan modify: unaided\nUnrequested: server/middleware/requireAdmin.js, kept for you to decide\n\nSay tomorrow:\n- The helper reads the response as a blob, not as JSON, and the page turns that blob into a download.\n- The browser saves the file rather than displaying it because the controller sets the Content-Disposition header.\n\nNothing in the code was changed."
+    }
+  ]
+}

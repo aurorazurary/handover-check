@@ -47,7 +47,7 @@ import { render } from '../llm/prompts.js';
  */
 async function say(session, scenario, ctx) {
   const raw = await complete({ system: ctx.system, messages: ctx.messages });
-  const scan = scanReply(raw, { state: session.state, scenario });
+  const scan = scanReply(raw, { state: session.state, scenario, session });
 
   if (!scan.ok) {
     for (const v of scan.violations) recordViolation(session, v);

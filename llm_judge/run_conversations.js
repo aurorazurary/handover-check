@@ -64,17 +64,23 @@ ${scenarioPublic.repoMap.map((p) => `- ${p}`).join('\n')}
 Reply with your next message only. No quotation marks, no stage directions, no
 markdown.`;
 
-  const messages = transcript.slice(-10).map((t) => ({
-    // From the learner's point of view the CUI is the other party.
-    role: /** @type {'user'|'assistant'} */ (t.role === 'cui' ? 'user' : 'assistant'),
-    content: t.content,
-  }));
+  const messages = transcript
+    .filter((t) => String(t.content || '').trim())
+    .slice(-10)
+    .map((t) => ({
+      // From the learner's point of view the CUI is the other party.
+      role: /** @type {'user'|'assistant'} */ (t.role === 'cui' ? 'user' : 'assistant'),
+      content: t.content,
+    }));
   if (!messages.length || messages[0].role !== 'user') {
     messages.unshift({ role: 'user', content: '(the tool has just opened)' });
   }
 
   const out = await complete({ system, messages, temperature: 0.9, maxTokens: 160 });
-  return out.replace(/^["']|["']$/g, '').trim();
+  const line = out.replace(/^["']|["']$/g, '').trim();
+  // A persona that returns nothing would be sent as an empty user message,
+  // which the API rejects. Treat silence as a shrug rather than aborting the run.
+  return line || 'not sure';
 }
 
 /**

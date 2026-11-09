@@ -114,3 +114,36 @@ test('the hint ladder narrows and never concedes the answer', () => {
   }
   assert.equal(rungs[2], rungs[3], 'the ladder stops rather than wrapping');
 });
+
+test('a path the learner guessed is not treated as a leak when echoed back', () => {
+  // The confidently-wrong persona guessed ForgotPassword.jsx, which happens to
+  // be a file the agent creates. Repeating their own guess tells them nothing,
+  // and flagging it both fires falsely and penalises the learners who guess
+  // most specifically. Found when generating conversation c09.
+  const session = {
+    transcript: [{ role: 'learner', content: 'probably client/src/pages/ForgotPassword.jsx and the controller' }],
+  };
+  const r = scanReply(
+    'Noted: client/src/pages/ForgotPassword.jsx and the controller.',
+    { state: S.PREDICT_FILES, scenario, session },
+  );
+  assert.equal(r.ok, true);
+});
+
+test('a path the learner did NOT say is still a leak', () => {
+  const session = { transcript: [{ role: 'learner', content: 'the user model' }] };
+  const r = scanReply(
+    'It will also add server/middleware/rateLimit.js.',
+    { state: S.PREDICT_FILES, scenario, session },
+  );
+  assert.equal(r.ok, false);
+  assert.equal(r.violations[0].rule, 'G1');
+});
+
+test('secretNeedles drops only what was said, not everything', () => {
+  const said = 'client/src/pages/forgotpassword.jsx';
+  const needles = secretNeedles(scenario, said);
+  const paths = needles.filter((n) => n.kind === 'added-file-path').map((n) => n.needle);
+  assert.ok(!paths.includes('client/src/pages/ForgotPassword.jsx'), 'the guessed one is excluded');
+  assert.ok(paths.includes('server/middleware/rateLimit.js'), 'the others remain');
+});

@@ -1,0 +1,134 @@
+{
+  "id": "c03",
+  "persona": "outcome-only",
+  "personaLabel": "Outcome-level explainer",
+  "adversarial": false,
+  "scenario": "password-reset",
+  "promptVersion": "v1",
+  "expectFail": false,
+  "note": "describes the outcome; must be pushed to mechanism",
+  "model": "claude-sonnet-5",
+  "generatedAt": "2026-11-09T14:04:41.249Z",
+  "finalState": "END",
+  "progress": {
+    "files": "hinted",
+    "mechanism": "hinted",
+    "concept": "unaided",
+    "finalCheck": "unaided"
+  },
+  "violations": [],
+  "fileScore": {
+    "hit": [],
+    "missed": [
+      "client/src/pages/ForgotPassword.jsx",
+      "client/src/pages/ResetPassword.jsx",
+      "client/src/api/auth.js",
+      "server/routes/auth.js",
+      "server/controllers/authController.js",
+      "server/models/User.js"
+    ],
+    "spurious": [
+      "client/src/App.jsx",
+      "client/src/routes.jsx"
+    ],
+    "unplannedMissed": [
+      "server/middleware/rateLimit.js"
+    ],
+    "score": {
+      "predicted": 0,
+      "total": 6
+    }
+  },
+  "transcript": [
+    {
+      "role": "cui",
+      "state": "ACTIVATE",
+      "content": "This one is above your threshold, 6 files. Want to predict while it works? Say skip to pass.\n\nTwo questions, then I will leave you alone until it is done. I will not tell you whether you are right yet."
+    },
+    {
+      "role": "learner",
+      "state": "ACTIVATE",
+      "content": "Sure, let's do it. I'm guessing it touches routes.jsx and App.jsx for the new pages"
+    },
+    {
+      "role": "cui",
+      "state": "PREDICT_FILES",
+      "content": "Noted, routes.jsx and App.jsx. Given the auto-registration convention described for pages, what actually has to exist for a new page like \"forgot password\" to appear in the app at all?"
+    },
+    {
+      "role": "learner",
+      "state": "PREDICT_FILES",
+      "content": "Basically"
+    },
+    {
+      "role": "cui",
+      "state": "PREDICT_FILES",
+      "content": "I will, once the agent is done - right now there is nothing to tell you, because the change does not exist yet. Which part of the repo would have to be involved at all?"
+    },
+    {
+      "role": "cui",
+      "state": "PAUSED",
+      "content": "Agent needs you. I will wait."
+    },
+    {
+      "role": "cui",
+      "state": "PREDICT_FILES",
+      "content": "Back. Nothing else from me until it is done."
+    },
+    {
+      "role": "learner",
+      "state": "PREDICT_FILES",
+      "content": "Right, so for a new page to actually show up you need a route entry wired into routes.jsx pointing at the component, and then App.jsx has to be rendering whatever router or layout holds those routes, so both of those have to be touched together, that's the registration part."
+    },
+    {
+      "role": "cui",
+      "state": "PREDICT_MECHANISM",
+      "content": "Noted, that routes.jsx and App.jsx both get touched for a new page to register. Now forget files for a second, walk me through it in plain steps, from the moment the user clicks \"forgot password\" to the moment they are logged in with a new one, what has to happen in order."
+    },
+    {
+      "role": "learner",
+      "state": "PREDICT_MECHANISM",
+      "content": "User clicks forgot password, types their email, hits submit, and gets a message saying check your inbox. They open the email, click the reset link, it drops them on a set new password page, they type the new one twice, submit, and it logs them straight in with the new password active. Behind that there's a token that gets generated and emailed, and it gets checked when they submit the new password so the link can't be reused forever."
+    },
+    {
+      "role": "cui",
+      "state": "WAIT_FOR_AGENT",
+      "content": "Noted, that is the full user journey. Something to sit with while the agent works, not to answer now: between the moment the token gets generated and emailed, and the moment it gets checked on submit, it has to live somewhere in between. Where does that in-between state belong, given the convention that anything persisted is a field on a model."
+    },
+    {
+      "role": "cui",
+      "state": "RECONCILE_MECHANISM",
+      "content": "Right, the agent's done. Scoring your prediction against the diff: you named 0 of the 6 files that actually changed. routes.jsx and App.jsx, your registration pair, weren't touched at all, this feature didn't need a new route.\n\nHere's what did change. Two new pages: client/src/pages/ForgotPassword.jsx, an email field that calls a function called requestReset, and client/src/pages/ResetPassword.jsx, which reads the token straight out of the URL and posts it along with the new password. client/src/api/auth.js gained requestReset(email) and submitReset(token, password), the two functions those pages call.\n\nOn the server, server/routes/auth.js declares the two POST endpoints, server/controllers/authController.js holds forgot() and reset(), and server/models/User.js got two new fields, which is the answer to what I asked you to sit with: resetTokenHash and resetTokenExpiry live on the user record itself.\n\nOne more file showed up that wasn't"
+    },
+    {
+      "role": "learner",
+      "state": "RECONCILE_MECHANISM",
+      "content": "Yeah, mailer.js, it has to actually send the thing, otherwise the whole link-in-your-inbox step doesn't exist."
+    },
+    {
+      "role": "cui",
+      "state": "GROUND",
+      "content": "\n\nNow server/middleware/rateLimit.js, the one that was not in the plan. Before I explain it - do you know what Express middleware is?"
+    },
+    {
+      "role": "learner",
+      "state": "GROUND",
+      "content": "Roughly, yeah, it's code that sits in front of your route handler and runs first, so it can check or block or modify the request before it ever reaches the actual logic for that endpoint. Given the name here I'd guess it's throttling how often someone can hit the forgot password endpoint, so people can't just spam reset emails at an account over and over."
+    },
+    {
+      "role": "cui",
+      "state": "FINAL_CHECK",
+      "content": "That's the shape of it. Concretely, this one keeps a map of IP to timestamps, and on the seventh hit from the same IP inside fifteen minutes it short-circuits with 429 before authController.forgot ever runs:\n\n`if (recent.length >= 6) return res.status(429).json({ error: 'Too many requests' });`\n\nThis file wasn't part of what you asked for, the agent added it unprompted. Whether it stays in is your call, not mine, I'm not touching the code either way.\n\nLast one. To change how long a reset link stays valid, from one hour to six, which file do you edit?"
+    },
+    {
+      "role": "learner",
+      "state": "FINAL_CHECK",
+      "content": "That'd be server/controllers/authController.js, wherever reset() sets the resetTokenExpiry value when it generates the token, probably something like Date.now() plus an hour in milliseconds that I'd just bump to six hours."
+    },
+    {
+      "role": "cui",
+      "state": "END",
+      "content": "Close, but it's forgot() that generates the token, not reset(), reset() is the one that checks it against what was already stored. The line itself is exactly what you described:\n\n`user.resetTokenExpiry = Date.now() + 60 * 60 * 1000;`\n\nThat's the one to bump.\n\nAdd forgot / reset password\nFiles: 7 changed, you predicted 0 of the 6 that were planned\nMechanism: hinted\nConcept: unaided\nCan modify: unaided\nUnrequested: server/middleware/rateLimit.js, kept for you to decide\n\nSay tomorrow:\n- The page does not call the server directly; it goes through the helper in client/src/api/auth.js.\n- The token is generated on the server, in the controller, not in the browser.\n\nNothing in the code was changed."
+    }
+  ]
+}

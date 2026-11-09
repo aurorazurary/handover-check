@@ -1,0 +1,121 @@
+{
+  "id": "c17",
+  "persona": "outcome-only",
+  "personaLabel": "Outcome-level explainer",
+  "adversarial": false,
+  "scenario": "password-reset",
+  "promptVersion": "v0",
+  "expectFail": true,
+  "note": "v0 explains the mechanism unprompted",
+  "model": "claude-sonnet-5",
+  "generatedAt": "2026-11-09T14:14:02.339Z",
+  "finalState": "END",
+  "progress": {
+    "files": "hinted",
+    "mechanism": "hinted",
+    "concept": "unaided",
+    "finalCheck": "unaided"
+  },
+  "violations": [],
+  "fileScore": {
+    "hit": [],
+    "missed": [
+      "client/src/pages/ForgotPassword.jsx",
+      "client/src/pages/ResetPassword.jsx",
+      "client/src/api/auth.js",
+      "server/routes/auth.js",
+      "server/controllers/authController.js",
+      "server/models/User.js"
+    ],
+    "spurious": [],
+    "unplannedMissed": [
+      "server/middleware/rateLimit.js"
+    ],
+    "score": {
+      "predicted": 0,
+      "total": 6
+    }
+  },
+  "transcript": [
+    {
+      "role": "cui",
+      "state": "ACTIVATE",
+      "content": "This one is above your threshold, 6 files. Want to predict while it works? Say skip to pass.\n\nTwo questions, then I will leave you alone until it is done. I will not tell you whether you are right yet."
+    },
+    {
+      "role": "cui",
+      "state": "PREDICT_FILES",
+      "content": ""
+    },
+    {
+      "role": "learner",
+      "state": "PREDICT_FILES",
+      "content": "Sure, let's do it. My"
+    },
+    {
+      "role": "cui",
+      "state": "PREDICT_MECHANISM",
+      "content": "Got it, recorded! Looks like your message might have gotten cut off there — no worries, I've noted"
+    },
+    {
+      "role": "cui",
+      "state": "PAUSED",
+      "content": "Agent needs you. I will wait."
+    },
+    {
+      "role": "cui",
+      "state": "PREDICT_MECHANISM",
+      "content": "Back. Nothing else from me until it is done."
+    },
+    {
+      "role": "cui",
+      "state": "PREDICT_MECHANISM",
+      "content": "I would rather you got there. One step only: what has to happen first, before anything is saved?"
+    },
+    {
+      "role": "learner",
+      "state": "PREDICT_MECHANISM",
+      "content": "The server needs to generate a reset token for that user and save it with an expiry, so when they click the email link it can look up that token and know it is actually them and that it is not stale."
+    },
+    {
+      "role": "cui",
+      "state": "WAIT_FOR_AGENT",
+      "content": "That's a solid grasp of the core mechanism — token plus expiry, looked up on click, that's exactly right.\n\nWhile the agent finishes, here's something to chew on but genuinely don't answer yet: **what should the token itself actually look like, and why not just store the user's email or ID directly as the \"token\" in the link?**\n\nSit with that one — it touches on how the token is generated and stored, which is a detail you haven't mentioned yet. No need to answer now, just think it over."
+    },
+    {
+      "role": "cui",
+      "state": "RECONCILE_MECHANISM",
+      "content": ""
+    },
+    {
+      "role": "learner",
+      "state": "RECONCILE_MECHANISM",
+      "content": "Yeah, fair, let me actually think about that one for a second."
+    },
+    {
+      "role": "cui",
+      "state": "GROUND",
+      "content": "\n\nNow server/middleware/rateLimit.js, the one that was not in the plan. Before I explain it - do you know what Express middleware is?"
+    },
+    {
+      "role": "learner",
+      "state": "GROUND",
+      "content": "Middleware's basically a function that sits in front of your routes and can inspect or block a request before it hits the actual controller logic, so in this case it's probably throttling how many reset requests can come from the same place so someone can't hammer the endpoint."
+    },
+    {
+      "role": "cui",
+      "state": "FINAL_CHECK",
+      "content": "That's exactly right, and you've basically already explained the file for me.\n\nConcretely: it keeps a map of IP addresses to timestamps, and on every request to `/auth/forgot`, it filters that IP's list down to hits in the last fifteen minutes. If there are six or more already, it returns `429 Too Many Requests` and stops the request there; otherwise it logs this hit and calls `next()` to let the real route handler run.\n\nWhether you want this in your app is your call, not the agent's — you can keep it, tune the numbers, or pull it out entirely, and I won't touch the code either way. Your next question is waiting for you.\n\nLast one. To change how long a reset link stays valid, from one hour to six, which file do you edit?"
+    },
+    {
+      "role": "learner",
+      "state": "FINAL_CHECK",
+      "content": "That'd be in server/controllers/authController.js, wherever it sets the expiry when it creates the reset token, so I'd just change the one hour value there to six."
+    },
+    {
+      "role": "cui",
+      "state": "END",
+      "content": "Confirmed — `server/controllers/authController.js`, in `forgot()`, the line setting `user.resetTokenExpiry = Date.now() + 60 * 60 * 1000`.\n\nAdd forgot / reset password\nFiles: 7 changed, you predicted 0 of the 6 that were planned\nMechanism: hinted\nConcept: unaided\nCan modify: unaided\nUnrequested: server/middleware/rateLimit.js, kept for you to decide\n\nSay tomorrow:\n- The page does not call the server directly; it goes through the helper in client/src/api/auth.js.\n- The token is generated on the server, in the controller, not in the browser.\n\nNothing in the code was changed."
+    }
+  ]
+}

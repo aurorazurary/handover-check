@@ -36,7 +36,7 @@ const HISTORY_TURNS = 8;
  */
 function history(session) {
   const raw = session.transcript
-    .filter((t) => t.role === 'learner' || t.role === 'cui')
+    .filter((t) => (t.role === 'learner' || t.role === 'cui') && String(t.content || '').trim())
     .slice(-HISTORY_TURNS)
     .map((t) => ({
       role: /** @type {'user'|'assistant'} */ (t.role === 'learner' ? 'user' : 'assistant'),
@@ -108,7 +108,10 @@ export function buildPhase1Context({ session, scenario, turnGoal, priorContext =
     PRIOR_CONTEXT: priorContext,
   }, session.settings.promptVersion);
 
-  assertNoSecret(system, scenario, 'phase 1 system prompt');
+  // The learner's own words are quoted back to the model in PRIOR_CONTEXT. If
+  // they guessed a path that turns out to be one the agent created, that is
+  // their guess, not a disclosure, so it is removed before the assertion runs.
+  assertNoSecret(system, scenario, 'phase 1 system prompt', priorContext);
   return { system, messages: history(session) };
 }
 
@@ -171,20 +174,22 @@ export function hunkText(change) {
  * @param {string} text
  * @param {import('./types.js').Scenario} scenario
  * @param {string} label
+ * @param {string} [quoted] a passage quoting the learner, excluded from the scan
  */
-export function assertNoSecret(text, scenario, label) {
+export function assertNoSecret(text, scenario, label, quoted = '') {
+  const scanned = quoted ? text.split(quoted).join(' ') : text;
   const inRepo = new Set(scenario.public.repoMap);
   for (const c of scenario.secret.changes) {
-    if (!inRepo.has(c.path) && text.includes(c.path)) {
+    if (!inRepo.has(c.path) && scanned.includes(c.path)) {
       throw new Error(`${label} contains the added path ${c.path}`);
     }
     for (const line of c.hunk || []) {
-      if (line.text.trim().length >= 15 && text.includes(line.text.trim())) {
+      if (line.text.trim().length >= 15 && scanned.includes(line.text.trim())) {
         throw new Error(`${label} contains a diff line from ${c.path}`);
       }
     }
   }
-  if (text.includes(scenario.secret.finalCheck.question)) {
+  if (scanned.includes(scenario.secret.finalCheck.question)) {
     throw new Error(`${label} contains the final check question`);
   }
 }

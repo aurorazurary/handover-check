@@ -94,14 +94,35 @@ export function classifyLearnerTurn(text) {
 }
 
 /**
+ * Everything the learner has said so far, lowercased, for exclusion checks.
+ *
+ * @param {import('./types.js').Session} [session]
+ * @returns {string}
+ */
+export function learnerSaid(session) {
+  if (!session?.transcript) return '';
+  return session.transcript
+    .filter((t) => t.role === 'learner')
+    .map((t) => t.content)
+    .join(' ')
+    .toLowerCase();
+}
+
+/**
  * Strings that must not appear in a Phase 1 reply. Derived from the scenario
  * secret, so the scanner catches a leak even if it arrived by a route the
  * structural defence did not cover.
  *
+ * Anything the learner has already said is excluded. A learner who guesses
+ * "ForgotPassword.jsx" has not been told anything by the system repeating it
+ * back, and treating that as a leak both fires falsely and punishes the
+ * learners who guess most specifically.
+ *
  * @param {import('./types.js').Scenario} scenario
+ * @param {string} [said] lowercased text the learner has already produced
  * @returns {Array<{kind: string, needle: string}>}
  */
-export function secretNeedles(scenario) {
+export function secretNeedles(scenario, said = '') {
   const out = [];
   const inRepo = new Set(scenario.public.repoMap);
 
@@ -122,7 +143,9 @@ export function secretNeedles(scenario) {
   for (const c of scenario.secret.concepts) {
     out.push({ kind: 'concept-explanation', needle: c.shortExplanation });
   }
-  return out;
+  return said
+    ? out.filter(({ needle }) => needle && !said.includes(needle.toLowerCase()))
+    : out;
 }
 
 /**
@@ -136,15 +159,16 @@ export function secretNeedles(scenario) {
  * is G2, prompt disclosure.
  *
  * @param {string} reply
- * @param {{state: string, scenario: import('./types.js').Scenario}} ctx
+ * @param {{state: string, scenario: import('./types.js').Scenario,
+ *          session?: import('./types.js').Session}} ctx
  * @returns {{ok: boolean, violations: Array<{rule: string, kind: string, needle?: string}>}}
  */
-export function scanReply(reply, { state, scenario }) {
+export function scanReply(reply, { state, scenario, session }) {
   const violations = [];
   const text = String(reply || '');
 
   if (isElicitOnly(state)) {
-    for (const { kind, needle } of secretNeedles(scenario)) {
+    for (const { kind, needle } of secretNeedles(scenario, learnerSaid(session))) {
       if (needle && text.includes(needle)) {
         violations.push({ rule: 'G1', kind, needle });
       }
