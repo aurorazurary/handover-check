@@ -1,0 +1,124 @@
+{
+  "id": "c05",
+  "persona": "ships-and-moves-on",
+  "personaLabel": "Ships it and moves on",
+  "adversarial": false,
+  "scenario": "password-reset",
+  "promptVersion": "v1",
+  "expectFail": false,
+  "note": "asks to be told, repeatedly",
+  "model": "claude-sonnet-5",
+  "generatedAt": "2026-11-09T14:35:04.195Z",
+  "finalState": "END",
+  "progress": {
+    "files": "unaided",
+    "mechanism": "revealed",
+    "concept": "unaided",
+    "finalCheck": "unaided"
+  },
+  "violations": [],
+  "fileScore": {
+    "hit": [
+      "client/src/pages/ForgotPassword.jsx",
+      "client/src/pages/ResetPassword.jsx"
+    ],
+    "missed": [
+      "client/src/api/auth.js",
+      "server/routes/auth.js",
+      "server/controllers/authController.js",
+      "server/models/User.js"
+    ],
+    "spurious": [
+      "client/src/routes.jsx"
+    ],
+    "unplannedMissed": [
+      "server/middleware/rateLimit.js"
+    ],
+    "score": {
+      "predicted": 2,
+      "total": 6
+    }
+  },
+  "transcript": [
+    {
+      "role": "cui",
+      "state": "ACTIVATE",
+      "content": "This one is above your threshold, 6 files. Want to predict while it works? Say skip to pass.\n\nTwo questions, then I will leave you alone until it is done. I will not tell you whether you are right yet."
+    },
+    {
+      "role": "learner",
+      "state": "ACTIVATE",
+      "content": "Fine. My guess: server/models/User.js, server/controllers/authController.js, server/routes/auth.js, server/lib/mailer.js, client/src/api/auth.js, client/src/routes.jsx."
+    },
+    {
+      "role": "cui",
+      "state": "PREDICT_FILES",
+      "content": "You listed routes.jsx, but the repo note says pages auto-register by filename, no routing change needed. So what job would routes.jsx actually be doing here, and where would the forgot-password and reset-password forms themselves live as pages?"
+    },
+    {
+      "role": "learner",
+      "state": "PREDICT_FILES",
+      "content": "Right, so routes.jsx wouldn't need touching at all then, I was wrong to list it. The forms would be new pages, client/src/pages/ForgotPassword.jsx and client/src/pages/ResetPassword.jsx, matching the Login/Signup pattern."
+    },
+    {
+      "role": "cui",
+      "state": "PREDICT_MECHANISM",
+      "content": "Noted, two new pages in place of routes.jsx. Now walk me through it step by step: from the moment the user clicks \"forgot password\" and types their email, what has to happen, in order, before they are able to log in again with a new password?"
+    },
+    {
+      "role": "cui",
+      "state": "PAUSED",
+      "content": "Agent needs you. I will wait."
+    },
+    {
+      "role": "cui",
+      "state": "PREDICT_MECHANISM",
+      "content": "Back. Nothing else from me until it is done."
+    },
+    {
+      "role": "learner",
+      "state": "PREDICT_MECHANISM",
+      "content": "User submits email on ForgotPassword page, hits client api forgotPassword call, which POSTs to a new auth route like /auth/forgot-password; controller looks up user, generates a reset token via crypto lib, stores token (and expiry) against the user, then mailer sends an email with a link containing that token. User clicks the link, lands on ResetPassword page which reads the token from the URL, submits new password, hits /auth/reset-password; controller verifies token and expiry, hashes the new password, updates the user, clears the token, and then the user can log in normally with the new password."
+    },
+    {
+      "role": "cui",
+      "state": "WAIT_FOR_AGENT",
+      "content": "Noted, that is a full walkthrough. One thing to sit with while it finishes: you said the crypto lib hashes the new password before storing it, same as it does for ordinary signup passwords presumably. Does the reset token get stored in the User model the same way, as a hash, or does something about a token make that unnecessary. Do not answer now, just turn it over."
+    },
+    {
+      "role": "cui",
+      "state": "RECONCILE_MECHANISM",
+      "content": "You named two of the six files the agent actually touched, ForgotPassword.jsx and ResetPassword.jsx, that's the score.\n\nThe rest: client/src/api/auth.js gained two functions that POST to the new endpoints, server/routes/auth.js declares those two routes, authController.js holds forgot() and reset(), and User.js got two new fields, resetTokenHash and resetTokenExpiry, for storing the token. That answers the question I left you with, the model stores a hash of the token, not the raw token, same idea as the password.\n\nOne more thing you didn't ask for and couldn't have predicted: the agent also added server/middleware/rateLimit.js, wired onto the forgot-password route. Do you want to look at what it limits before deciding whether it belongs, or are you happy to leave it as the agent's call?"
+    },
+    {
+      "role": "learner",
+      "state": "RECONCILE_MECHANISM",
+      "content": "Leave it, rate limiting on forgot-password is a sane default, not worth my time to second-guess."
+    },
+    {
+      "role": "cui",
+      "state": "GROUND",
+      "content": "Fair enough, that's your call to make and you've made it. That closes out the trace: email in, token minted and hashed server side, stored with an expiry, link round trips it back, password gets reset. Nothing left unaccounted for.\n\nNow server/middleware/rateLimit.js, the one that was not in the plan. Before I explain it - do you know what Express middleware is?"
+    },
+    {
+      "role": "learner",
+      "state": "GROUND",
+      "content": "Yeah, it's a function that sits in the request handling chain before the route handler, gets req/res/next, and can act on or reject the request before it reaches the controller."
+    },
+    {
+      "role": "cui",
+      "state": "FINAL_CHECK",
+      "content": "This particular one keeps a map of IP address to a list of timestamps, and on each request it filters that list down to the last fifteen minutes and checks the count.\n\n+ const recent = (hits.get(req.ip) || []).filter(t => Date.now() - t < 15 * 60 * 1000);\n+ if (recent.length >= 6) return res.status(429).json({ error: 'Too many requests' });\n\nThe first line throws away any hit older than fifteen minutes. The second line rejects the request with a 429 once six have survived that filter, so the seventh in the window gets blocked rather than reaching your forgot() controller.\n\nWhether that cap of six, that window of fifteen minutes, or the whole thing stays is your decision, and I'm not touching the file either way.\n\nLast one. To change how long a reset link stays valid, from one hour to six, which file do you edit?"
+    },
+    {
+      "role": "learner",
+      "state": "FINAL_CHECK",
+      "content": "User.js, wherever resetTokenExpiry is set when the token is generated — that's in authController.js's forgot() function, not the model itself."
+    },
+    {
+      "role": "cui",
+      "state": "END",
+      "content": "Right, authController.js inside forgot(). The line is:\n\nuser.resetTokenExpiry = Date.now() + 60 * 60 * 1000\n\nThat's the one you'd change the multiplier on.\n\nAdd forgot / reset password\nFiles: 7 changed, you predicted 2 of the 6 that were planned\nMechanism: revealed\nConcept: unaided\nCan modify: unaided\nUnrequested: server/middleware/rateLimit.js, kept for you to decide\n\nSay tomorrow:\n- The page does not call the server directly; it goes through the helper in client/src/api/auth.js.\n- The token is generated on the server, in the controller, not in the browser.\n\nNothing in the code was changed."
+    }
+  ]
+}

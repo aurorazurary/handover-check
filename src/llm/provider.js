@@ -63,17 +63,27 @@ const SEND_TEMPERATURE = process.env.HC_SEND_TEMPERATURE === '1';
  *   the prompt, not by this number.
  * @param {number} [opts.temperature] only sent when HC_SEND_TEMPERATURE=1
  * @param {string} [opts.model] override, used by the judge
+ * @param {boolean} [opts.think] allow extended thinking. Off for dialogue, on
+ *   for grading and judging, where reading a transcript carefully is the job
  * @returns {Promise<string>}
  */
 export async function complete({
-  system, messages, maxTokens = 2000, temperature = 0.3, model = MODEL,
+  system, messages, maxTokens = 2000, temperature = 0.3, model = MODEL, think = false,
 }) {
   if (PROVIDER === 'mock') return mockComplete({ system, messages });
 
   const res = await anthropic().messages.create({
     model,
     max_tokens: maxTokens,
-    ...(SEND_TEMPERATURE ? { temperature } : {}),
+    // Extended thinking is on by default on this model and its length is not
+    // bounded by anything the caller controls, so a conversational turn can
+    // spend the whole budget thinking and return nothing. These turns are two
+    // or three sentences of dialogue and gain nothing from it, so it is off
+    // unless the caller asks. Analytical calls (grading, judging) ask.
+    thinking: think
+      ? { type: 'enabled', budget_tokens: Math.max(1024, Math.floor(maxTokens * 0.6)) }
+      : { type: 'disabled' },
+    ...(SEND_TEMPERATURE && !think ? { temperature } : {}),
     system,
     messages: messages.map((m) => ({ role: m.role, content: m.content })),
   });
@@ -92,8 +102,8 @@ export async function complete({
   if (!text && res.stop_reason === 'max_tokens') {
     throw new Error(
       `Model produced no text: the ${maxTokens} token budget was consumed before output `
-      + `(${res.usage?.output_tokens_details?.thinking_tokens ?? '?'} thinking tokens). `
-      + 'Raise maxTokens for this call.',
+      + `(${res.usage?.output_tokens_details?.thinking_tokens ?? '?'} thinking tokens, `
+      + `think=${think}). Raise maxTokens, or set think:false for a dialogue turn.`,
     );
   }
   return text;
@@ -118,7 +128,7 @@ export async function complete({
  * @returns {Promise<any>}
  */
 export async function completeJSON({
-  system, messages, fallback = null, maxTokens = 4000, model = MODEL,
+  system, messages, fallback = null, maxTokens = 4000, model = MODEL, think = true,
 }) {
   if (PROVIDER === 'mock') return mockJSON({ system, messages, fallback });
 
