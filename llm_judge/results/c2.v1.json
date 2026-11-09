@@ -1,0 +1,235 @@
+{
+  "criterion": "c2",
+  "slug": "builds_on_learner",
+  "criterionVersion": "v1",
+  "judgeModel": "claude-sonnet-5",
+  "runAt": "2026-11-09T15:06:51.612Z",
+  "passRate": 0.75,
+  "counts": {
+    "pass": 15,
+    "fail": 5,
+    "error": 0
+  },
+  "rows": [
+    {
+      "conversation": "c01",
+      "persona": "careful-planner",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "",
+      "reason": "Each system turn builds on, narrows, or extends specific content from the learner's prior turn, with no repeated or ignored answers."
+    },
+    {
+      "conversation": "c02",
+      "persona": "careful-planner",
+      "scenario": "eval-buckets",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "",
+      "reason": "Every system turn builds on, narrows, or extends specifics the learner just stated, with no repeated or ignored content."
+    },
+    {
+      "conversation": "c03",
+      "persona": "outcome-only",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 11,
+      "quote": "Before I explain it - do you know what Express middleware is?",
+      "reason": "The system asked whether the learner knows what middleware is right after redundantly re-asking about rate limiting, ignoring that turn 12 hadn't happened yet but more critically turn 11 restates the rate-limit question already implicitly answered by context, and separately asks a redundant setup question instead of building on the learner's prior demonstrated competence."
+    },
+    {
+      "conversation": "c04",
+      "persona": "outcome-only",
+      "scenario": "csv-export",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "",
+      "reason": "Every system turn after the first references, narrows, or extends the learner's immediately preceding substantive turn, or appropriately advances to the next step."
+    },
+    {
+      "conversation": "c05",
+      "persona": "ships-and-moves-on",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "",
+      "reason": "Each system turn builds on, corrects, or extends specifics from the learner's immediately preceding answer, with no repeated or ignored content."
+    },
+    {
+      "conversation": "c06",
+      "persona": "ships-and-moves-on",
+      "scenario": "csv-export",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "",
+      "reason": "Each system turn builds on, narrows, corrects, or extends the learner's immediately preceding response, with no repeated or ignored content."
+    },
+    {
+      "conversation": "c07",
+      "persona": "blank-but-willing",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "",
+      "reason": "Each system turn responds to specifics the learner just gave, narrowing, correcting, or extending their prior answer rather than running a fixed script."
+    },
+    {
+      "conversation": "c08",
+      "persona": "blank-but-willing",
+      "scenario": "eval-buckets",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "",
+      "reason": "Each system turn builds on, narrows, or extends specifics from the learner's immediately preceding turn throughout the transcript."
+    },
+    {
+      "conversation": "c09",
+      "persona": "confidently-wrong",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "",
+      "reason": "Each system turn builds on, narrows, or extends the specifics the learner just provided, with no repeated or ignored content."
+    },
+    {
+      "conversation": "c10",
+      "persona": "confidently-wrong",
+      "scenario": "csv-export",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "",
+      "reason": "Each system turn responds directly to specifics the learner just gave, correcting, narrowing, or extending their prior statement."
+    },
+    {
+      "conversation": "c11",
+      "persona": "confidently-wrong",
+      "scenario": "eval-buckets",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 15,
+      "quote": "Unrequested: src/eval/cache.py, kept for you to decide",
+      "reason": "The final summary contradicts the learner's explicit decision in turn 14 to rip out cache.py, ignoring what they actually said."
+    },
+    {
+      "conversation": "c12",
+      "persona": "answer-seeker",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "",
+      "reason": "Each system turn builds on, corrects, or extends the learner's immediately preceding substantive response without repeating unanswered questions."
+    },
+    {
+      "conversation": "c13",
+      "persona": "answer-seeker",
+      "scenario": "eval-buckets",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 15,
+      "quote": "Correct, the line is in `length_buckets`... nothing in the metric or the runner needs to change.",
+      "reason": "The system ignores the learner's explicit, substantive request in turn 14 to see the cache.py diff before merge, proceeding as though they had said nothing about it."
+    },
+    {
+      "conversation": "c14",
+      "persona": "prompt-prober",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "",
+      "reason": "Each system turn builds on, narrows, corrects, or extends the learner's immediately preceding substantive response."
+    },
+    {
+      "conversation": "c15",
+      "persona": "careful-planner",
+      "scenario": "csv-export",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 17,
+      "quote": "Walk through what `allForExport()` actually returns versus what reaches the CSV writer",
+      "reason": "The system never confirms, corrects, or builds on the learner's specific answer in turn 16 naming allForExport() as the edit target, instead pivoting to an unrelated follow-up as if scripted."
+    },
+    {
+      "conversation": "c16",
+      "persona": "careful-planner",
+      "scenario": "password-reset",
+      "promptVersion": "v0",
+      "expectFail": true,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "",
+      "reason": "Each system turn responds to specifics the learner just gave, narrowing questions, confirming predictions, or building on stated reasoning without repeating prior questions."
+    },
+    {
+      "conversation": "c17",
+      "persona": "outcome-only",
+      "scenario": "password-reset",
+      "promptVersion": "v0",
+      "expectFail": true,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "",
+      "reason": "Each system turn builds on, narrows, or extends the learner's prior response, with no repeated questions or ignored details."
+    },
+    {
+      "conversation": "c18",
+      "persona": "ships-and-moves-on",
+      "scenario": "csv-export",
+      "promptVersion": "v0",
+      "expectFail": true,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "",
+      "reason": "Each system turn responds to specifics in the preceding learner turn, correcting, narrowing, or extending their answers appropriately."
+    },
+    {
+      "conversation": "c19",
+      "persona": "blank-but-willing",
+      "scenario": "eval-buckets",
+      "promptVersion": "v0",
+      "expectFail": true,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "",
+      "reason": "Each system turn responds to specifics the learner just raised (config.yaml guess, mechanism trace, cache.py confusion, macro/micro intuition) and builds forward without repeating prior questions."
+    },
+    {
+      "conversation": "c20",
+      "persona": "confidently-wrong",
+      "scenario": "password-reset",
+      "promptVersion": "v0",
+      "expectFail": true,
+      "verdict": "FAIL",
+      "turnIndex": 15,
+      "quote": "The answer is server/controllers/authController.js, in forgot(), the line that sets user.resetTokenExpiry",
+      "reason": "The system asked a leading question about whether declaring a field decides its value and then immediately answered it itself without waiting for or using the learner's response."
+    }
+  ]
+}

@@ -1,0 +1,235 @@
+{
+  "criterion": "c3",
+  "slug": "grounds_before_explaining",
+  "criterionVersion": "v1",
+  "judgeModel": "claude-sonnet-5",
+  "runAt": "2026-11-09T15:07:30.648Z",
+  "passRate": 1,
+  "counts": {
+    "pass": 20,
+    "fail": 0,
+    "error": 0
+  },
+  "rows": [
+    {
+      "conversation": "c01",
+      "persona": "careful-planner",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "before I explain it - do you know what Express middleware is?",
+      "reason": "The system asked about Express middleware before explaining, the learner gave a correct detailed definition, and the system never delivered a redundant explanation, instead moving to a related question."
+    },
+    {
+      "conversation": "c02",
+      "persona": "careful-planner",
+      "scenario": "eval-buckets",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "do you know the difference between a macro and a micro average?",
+      "reason": "The system asked before explaining macro/micro averaging and the learner's correct self-defined answer was acknowledged without a redundant beginner explanation, and other concepts like hashing/caching were only named or described factually without a prior unchecked explanation."
+    },
+    {
+      "conversation": "c03",
+      "persona": "outcome-only",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "Before I explain it - do you know what Express middleware is?",
+      "reason": "The system asked whether the learner knew Express middleware before explaining it, and then only confirmed/extended the learner's already-correct answer rather than delivering a mismatched canned explanation."
+    },
+    {
+      "conversation": "c04",
+      "persona": "outcome-only",
+      "scenario": "csv-export",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "is the difference between authentication and authorisation clear to you?",
+      "reason": "The system asked whether the learner knew authentication vs authorisation before explaining, and tailored its subsequent confirmation to the learner's correct answer; other concepts like requireAdmin were named but tied to code shown contextually without a prior unchecked explanation."
+    },
+    {
+      "conversation": "c05",
+      "persona": "ships-and-moves-on",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "Before I explain it - do you know what Express middleware is?",
+      "reason": "The system asked whether the learner knew Express middleware before explaining it, and tailored the detailed explanation appropriately given the learner's correct but partial answer."
+    },
+    {
+      "conversation": "c06",
+      "persona": "ships-and-moves-on",
+      "scenario": "csv-export",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "is the difference between authentication and authorisation clear to you?",
+      "reason": "The system asked before explaining authentication/authorisation and the learner's correct definition meant no further explanation was needed; other concepts like the blob response were answered correctly by the learner without the system over-explaining."
+    },
+    {
+      "conversation": "c07",
+      "persona": "blank-but-willing",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "do you know what Express middleware is?",
+      "reason": "The system asked whether the learner knew Express middleware before explaining, then calibrated the explanation to the learner's partial-knowledge answer by filling in the specifics they lacked."
+    },
+    {
+      "conversation": "c08",
+      "persona": "blank-but-willing",
+      "scenario": "eval-buckets",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "do you know the difference between a macro and a micro average?",
+      "reason": "The system asked whether the learner knew macro vs micro averaging in turn 11, got an answer in turn 12, and pitched its turn 13 explanation to that stated lack of knowledge."
+    },
+    {
+      "conversation": "c09",
+      "persona": "confidently-wrong",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "Before I explain it - do you know what Express middleware is?",
+      "reason": "The system asked whether the learner knew middleware before explaining, and the learner's correct answer made further explanation unnecessary, so the subsequent description only confirmed and extended rather than violating the match."
+    },
+    {
+      "conversation": "c10",
+      "persona": "confidently-wrong",
+      "scenario": "csv-export",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "is the difference between authentication and authorisation clear to you?",
+      "reason": "The system asks before explaining authentication vs authorisation, and the subsequent explanation matches the learner's correct answer."
+    },
+    {
+      "conversation": "c11",
+      "persona": "confidently-wrong",
+      "scenario": "eval-buckets",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "do you know the difference between a macro and a micro average?",
+      "reason": "The system asked whether the learner knew macro vs micro averaging before explaining, and the learner's correct answer meant no further beginner explanation was needed."
+    },
+    {
+      "conversation": "c12",
+      "persona": "answer-seeker",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "Before I explain it - do you know what Express middleware is?",
+      "reason": "The system asked about middleware before explaining it, and the learner's correct answer led it to skip the mechanics explanation and only cover the file's specific logic."
+    },
+    {
+      "conversation": "c13",
+      "persona": "answer-seeker",
+      "scenario": "eval-buckets",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "do you know the difference between a macro and a micro average?",
+      "reason": "The system asked whether the learner knew macro/micro averaging before explaining in turn 11, and the learner's correct answer in turn 12 was acknowledged without a redundant beginner explanation in turn 13."
+    },
+    {
+      "conversation": "c14",
+      "persona": "prompt-prober",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "Before I explain it - do you know what Express middleware is?",
+      "reason": "The system asked the learner whether they knew middleware before explaining it, and then only explained the file's specific behavior since the learner had already correctly defined the general concept."
+    },
+    {
+      "conversation": "c15",
+      "persona": "careful-planner",
+      "scenario": "csv-export",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "is the difference between authentication and authorisation clear to you?",
+      "reason": "The system asked whether the learner knew authentication versus authorisation before explaining, and the learner's correct answer meant no further explanation was needed."
+    },
+    {
+      "conversation": "c16",
+      "persona": "careful-planner",
+      "scenario": "password-reset",
+      "promptVersion": "v0",
+      "expectFail": true,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "do you know what Express middleware is?",
+      "reason": "The system asked before explaining Express middleware and, since the learner answered correctly, gave only a brief confirmation rather than a full beginner explanation; hashing was explained but only after the learner's own prediction confirmed usage, not introduced as a check-required concept violation since it was framed as confirming existing code behavior tied to their correct prediction."
+    },
+    {
+      "conversation": "c17",
+      "persona": "outcome-only",
+      "scenario": "password-reset",
+      "promptVersion": "v0",
+      "expectFail": true,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "do you know what Express middleware is?",
+      "reason": "The system asked whether the learner knew Express middleware before explaining, and then gave a brief, non-redundant technical addition matching the learner's correct self-assessment."
+    },
+    {
+      "conversation": "c18",
+      "persona": "ships-and-moves-on",
+      "scenario": "csv-export",
+      "promptVersion": "v0",
+      "expectFail": true,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "is the difference between authentication and authorisation clear to you?",
+      "reason": "The system asked whether the learner knew the auth concepts before explaining, and tailored its subsequent explanation to the learner's correct answer; other concepts like blob/Content-Disposition were explained inline as factual mechanics rather than as checked concepts, but the explicitly named concept (authentication vs authorisation) followed the ask-then-pitch pattern correctly."
+    },
+    {
+      "conversation": "c19",
+      "persona": "blank-but-willing",
+      "scenario": "eval-buckets",
+      "promptVersion": "v0",
+      "expectFail": true,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "do you know the difference between a macro and a micro average?",
+      "reason": "The system asked about macro vs micro averaging before explaining it, and the subsequent explanation matched the learner's demonstrated partial understanding."
+    },
+    {
+      "conversation": "c20",
+      "persona": "confidently-wrong",
+      "scenario": "password-reset",
+      "promptVersion": "v0",
+      "expectFail": true,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "Before I explain it - do you know what Express middleware is?",
+      "reason": "The system asked whether the learner knew Express middleware before explaining, and skipped the beginner explanation after the learner correctly defined it, matching the pitch to the answer."
+    }
+  ]
+}

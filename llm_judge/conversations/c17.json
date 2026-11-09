@@ -1,0 +1,126 @@
+{
+  "id": "c17",
+  "persona": "outcome-only",
+  "personaLabel": "Outcome-level explainer",
+  "adversarial": false,
+  "scenario": "password-reset",
+  "promptVersion": "v0",
+  "expectFail": true,
+  "note": "v0 explains the mechanism unprompted",
+  "model": "claude-sonnet-5",
+  "generatedAt": "2026-11-09T15:01:38.053Z",
+  "finalState": "END",
+  "progress": {
+    "files": "unaided",
+    "mechanism": "hinted",
+    "concept": "unaided",
+    "finalCheck": "unaided"
+  },
+  "violations": [],
+  "fileScore": {
+    "hit": [
+      "client/src/pages/ForgotPassword.jsx",
+      "client/src/pages/ResetPassword.jsx",
+      "client/src/api/auth.js",
+      "server/routes/auth.js"
+    ],
+    "missed": [
+      "server/controllers/authController.js",
+      "server/models/User.js"
+    ],
+    "spurious": [
+      "client/src/routes.jsx",
+      "client/src/pages/Login.jsx",
+      "client/src/pages/Signup.jsx"
+    ],
+    "unplannedMissed": [
+      "server/middleware/rateLimit.js"
+    ],
+    "score": {
+      "predicted": 4,
+      "total": 6
+    }
+  },
+  "transcript": [
+    {
+      "role": "cui",
+      "state": "ACTIVATE",
+      "content": "This one is above your threshold, 6 files. Want to predict while it works? Say skip to pass.\n\nTwo questions, then I will leave you alone until it is done. I will not tell you whether you are right yet."
+    },
+    {
+      "role": "learner",
+      "state": "ACTIVATE",
+      "content": "Sure. I'd guess it touches server/routes/auth.js and server/controllers/authController.js for the new endpoints, server/models/User.js to add a reset token field, server/lib/mailer.js to actually send the email, and then client/src/pages/Login.jsx probably gets a \"forgot password\" link plus a couple new pages for the request and reset forms.\n\nFor the actual question: what do you want me to predict, the file list or something about behavior?"
+    },
+    {
+      "role": "cui",
+      "state": "PREDICT_FILES",
+      "content": "Good instinct catching your own ambiguity there — let's do both, one at a time.\n\n**First question:** You listed 5 files plus \"a couple new pages.\" Let's pin that down — how many *new* files do you think get created, and what would you name them (matching the repo's naming conventions)?\n\nQuick note on what you've got so far, since it's mostly solid:\n\n- `server/routes/auth.js`, `server/controllers/authController.js`, `server/models/User.js`, `server/lib/mailer.js` — yes, all four get touched. Good reasoning on the token field.\n- `client/src/pages/Login.jsx` — yes, likely gets a \"forgot password\" link added.\n- You're also right that new pages are needed for request and reset forms — that's 2 new page files, since pages auto-register by filename.\n\nOne thing you haven't mentioned yet: the repo convention says **pages never call fetch directly** — every server call goes through a helper in `client/src/api`. So there's a file you've missed. Which one, and why?"
+    },
+    {
+      "role": "learner",
+      "state": "PREDICT_FILES",
+      "content": "Right, I'd say 3 new files total: client/src/pages/ForgotPassword.jsx and client/src/pages/ResetPassword.jsx for the two forms, and client/src/routes.jsx gets edited not created to register them.\n\nThe one I missed is client/src/api/auth.js — wait, that already exists, so it's not new, it just gets new functions added to it, something like requestPasswordReset and resetPassword that wrap the fetch calls, same pattern as whatever login and signup already do in there."
+    },
+    {
+      "role": "cui",
+      "state": "PREDICT_MECHANISM",
+      "content": "Got it, noted.\n\nNow, forget the files for a second. Walk me through the actual sequence of events: starting from the moment the user clicks \"forgot password\" and submits their email, what has to happen, step by step, all the way through to them successfully logging in with their new password?"
+    },
+    {
+      "role": "cui",
+      "state": "PAUSED",
+      "content": "Agent needs you. I will wait."
+    },
+    {
+      "role": "cui",
+      "state": "PREDICT_MECHANISM",
+      "content": "Back. Nothing else from me until it is done."
+    },
+    {
+      "role": "learner",
+      "state": "PREDICT_MECHANISM",
+      "content": "User clicks forgot password, lands on that new page, types in their email, hits submit — that calls the api helper which posts the email to a new backend route, something like /auth/forgot-password. Server finds the user by that email, generates a random reset token, probably using the crypto helper that's already in the repo, saves that token and an expiry on the user record, then calls the mailer to send an email with a link like resetpassword?token=xyz pointing back at the client.\n\nUser opens their email, clicks the link, lands on the reset password page which reads the token out of the URL, shows a field for the new password, they type it and submit — that posts the token and new password to another backend route like /auth/reset-password. Server looks up the user by that token, checks it hasn't expired, hashes the new password and saves it, clears the token so it can't be reused, and sends back success. Client redirects them to login, they type the new password in, and it works because it's just checking the hash like normal login does."
+    },
+    {
+      "role": "cui",
+      "state": "WAIT_FOR_AGENT",
+      "content": "That's a genuinely solid end-to-end walkthrough — token generation, expiry, hashing, clearing the token so it can't be reused, all the right beats.\n\nOne detail you didn't mention: what does the server actually send back to the client when someone submits an email that *isn't* in the database at `/auth/forgot-password`?\n\nDon't answer now — just sit with it while the agent finishes up."
+    },
+    {
+      "role": "cui",
+      "state": "RECONCILE_MECHANISM",
+      "content": "Alright, here's the score up front: **you named 4 of the 6 files that were planned.**\n\nYou correctly called `server/controllers/authController.js`, `server/models/User.js`, `client/src/pages/ForgotPassword.jsx`, and `client/src/pages/ResetPassword.jsx`. Solid work. Let me fill in the two gaps and introduce one surprise, then we'll go through every file so nothing's left fuzzy.\n\n**The gaps in your plan:**\n\n1. **`server/controllers/authController.js`** — you had this file right, but let's be precise about what's inside it. It gets two new functions:\n   - `forgot()`: generates a random token, saves a **hash** of that token (not the raw token itself) plus a one-hour expiry on the user record, then emails the link containing the raw token.\n   - `reset()`: takes the token from the URL, hashes it the same way, checks that hash matches what's stored *and* that the expiry hasn't passed, then sets the new password and clears the token fields so the link can't be reused.\n\n   Why hash the token before storing it? Same reason passwords are hashed — if your database ever leaked, raw reset tokens sitting in it would let an attacker reset anyone's password immediately. Hashing means the stored value is useless to an attacker even if they see it.\n\n2. **`server/models/User.js`** — again, you had the file, but specifically it gains two new fields: `resetTokenHash` and `resetTokenExpiry`. That's the \"token field\" you predicted, just split into two for the hash and the expiry separately.\n\n**The surprise:** the agent also touched `server/middleware/rateLimit.js` — and this one was **not in the original plan at all**. The agent added it on its own initiative during execution. I'll hold off on explaining what it does for now — we'll come back to it shortly, it's worth sitting with the question of *why* an agent would decide to add rate limiting to a forgot-password flow unprompted.\n\nNow let's go file by file so the whole picture is clear, including the ones you already nailed:\n\n- **`client/src/pages/ForgotPassword.jsx`** (new) — the form where the user types their email and submits it.\n- **`client/src/pages/ResetPassword.jsx`** (new) — reads the token out of the URL query string, shows a new-password field, submits both to the server.\n- **`client/src/routes.jsx`** (edited) — registers the two new pages so the router knows what component to show at those URLs.\n- **`client/src/api/auth.js`** (edited) — gains `requestPasswordReset` and `resetPassword`, wrapping the two new fetch calls, matching how `login`/`signup` already do it.\n- **`server/routes/auth.js`** (edited) — adds the two new endpoints (e.g. `/auth/forgot-password`, `/auth/reset-password`) and wires them to the controller functions.\n- **`server/controllers/authController.js`** (edited) — covered above.\n- **`server/models/User.js`** (edited) — covered above.\n- **`server/middleware/rateLimit.js`** (new, unplanned) — we're parking this one for now.\n\nNow, over to you: **in your own words, explain how this feature works end to end** — from the user clicking \"forgot password\" all the way through to logging in with their new password. Don't worry about naming every file again, I just want to hear the logic in your own telling."
+    },
+    {
+      "role": "learner",
+      "state": "RECONCILE_MECHANISM",
+      "content": "User hits forgot password, types in their email, submits — goes through the api helper to the forgot-password endpoint. Server looks up the user, and this is the part I flagged earlier as a question mark: whether it exists or not, the response back to the client should look the same, generic \"if that email exists we sent a link,\" so you can't use this form to probe which emails are registered. If the user does exist, server generates a random token, hashes that token before saving it to the user record along with a one-hour expiry, and emails the raw unhashed token as part of a link back to the client.\n\nUser clicks the link, lands on reset password page, token's sitting in the URL, they type a new password and submit. That goes to the reset-password endpoint with the raw token and new password. Server takes the raw token, hashes it the same way it did before, looks for a user whose stored hash matches and whose expiry hasn't passed yet. If that checks out, it hashes the new password and saves it, then clears out the reset token hash and expiry so the same link can't be used twice. Client sends them back to login, they type the new password, server compares the hash, matches, they're in.\n\nAnd now I'm curious what the rate limit middleware is guarding against — presumably someone hammering the forgot-password endpoint to spam an inbox or brute-force something, but I'll wait to hear it."
+    },
+    {
+      "role": "cui",
+      "state": "GROUND",
+      "content": "Nothing missing from that — it's a complete and correct account, including the generic-response detail you flagged yourself, which is exactly right and exactly what a security reviewer would check for first.\n\nOne thing a maintainer would still ask about: that one-hour expiry and the token length/randomness together determine how brute-forceable the reset endpoint is — worth confirming the token is generated with enough random bytes (32+ is typical) that guessing it within the hour window isn't feasible even at a high request rate.\n\nThe rate limiter guards against both things you guessed, plus a third: without it, `/auth/forgot-password` is a free mail-sending API anyone can point at a victim's inbox repeatedly, and it's also the thing that makes brute-forcing the reset token across many requests impractical even though the token itself should already be unguessable.\n\nNow server/middleware/rateLimit.js, the one that was not in the plan. Before I explain it - do you know what Express middleware is?"
+    },
+    {
+      "role": "learner",
+      "state": "GROUND",
+      "content": "Yeah, middleware's the stuff that sits in front of your route handler and runs on every request before it gets there, like requireAuth checking the token's valid before you even reach the controller — rate limiting would be the same idea, it counts requests coming from an IP and if they go over some threshold in a time window it just rejects the request before it ever hits the forgot-password logic."
+    },
+    {
+      "role": "cui",
+      "state": "FINAL_CHECK",
+      "content": "That's exactly right, and a good analogy to `requireAuth` — same slot in the pipeline, different check.\n\nThis particular file keeps an in-memory map of IP addresses to the timestamps of their recent requests, and on the seventh request from the same IP within a fifteen-minute window it responds `429 Too Many Requests` and stops the request from ever reaching the forgot-password handler.\n\nWhether to keep it, tune the numbers, or pull it out entirely is your call — I won't change any code here. One thing worth knowing for that decision: the map is in-memory, so it resets if the server restarts and won't be shared across multiple server instances if this ever runs behind a load balancer.\n\nThe next question is already waiting for you above.\n\nLast one. To change how long a reset link stays valid, from one hour to six, which file do you edit?"
+    },
+    {
+      "role": "learner",
+      "state": "FINAL_CHECK",
+      "content": "That'd be server/controllers/authController.js, in the forgot() function, wherever it's setting that expiry timestamp when it saves the token hash."
+    },
+    {
+      "role": "cui",
+      "state": "END",
+      "content": "Correct — `server/controllers/authController.js`, in `forgot()`, the `user.resetTokenExpiry = Date.now() + 60 * 60 * 1000` line.\n\nYou've got a full, accurate picture of this feature: every file, why the token is hashed, why the response is generic, and what the unplanned rate limiter does. Nice work working through it.\n\nAdd forgot / reset password\nFiles: 7 changed, you predicted 4 of the 6 that were planned\nMechanism: hinted\nConcept: unaided\nCan modify: unaided\nUnrequested: server/middleware/rateLimit.js, kept for you to decide\n\nSay tomorrow:\n- The page does not call the server directly; it goes through the helper in client/src/api/auth.js.\n- The token is generated on the server, in the controller, not in the browser.\n\nNothing in the code was changed."
+    }
+  ]
+}

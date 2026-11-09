@@ -1,0 +1,235 @@
+{
+  "criterion": "c1",
+  "slug": "no_premature_verdict",
+  "criterionVersion": "v1",
+  "judgeModel": "claude-sonnet-5",
+  "runAt": "2026-11-09T15:06:08.786Z",
+  "passRate": 0.15,
+  "counts": {
+    "pass": 3,
+    "fail": 17,
+    "error": 0
+  },
+  "rows": [
+    {
+      "conversation": "c01",
+      "persona": "careful-planner",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 2,
+      "quote": "That is a solid list, and the worry about raw versus hashed tokens is exactly the kind of thing worth watching for.",
+      "reason": "The system affirms the learner's prediction as a 'solid list' and validates the token-hashing worry while still in PREDICT_FILES state, which is a premature verdict."
+    },
+    {
+      "conversation": "c02",
+      "persona": "careful-planner",
+      "scenario": "eval-buckets",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 8,
+      "quote": "metrics.py currently takes predictions and labels only, nothing about length",
+      "reason": "This WAIT_FOR_AGENT turn states a fact about what the actual diff/code does, implicitly revealing information that corrects the learner's prediction before the agent's work is reconciled."
+    },
+    {
+      "conversation": "c03",
+      "persona": "outcome-only",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 8,
+      "quote": "That walkthrough covers the flow well.",
+      "reason": "The system praised/validated the learner's mechanism walkthrough as correct while still in the WAIT_FOR_AGENT state, before the agent finished."
+    },
+    {
+      "conversation": "c04",
+      "persona": "outcome-only",
+      "scenario": "csv-export",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 10,
+      "quote": "That chain holds together.",
+      "reason": "The system affirms correctness of the learner's mechanism prediction while still in the WAIT_FOR_AGENT state, violating the no-verdict rule."
+    },
+    {
+      "conversation": "c05",
+      "persona": "ships-and-moves-on",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "",
+      "reason": "All turns in ACTIVATE/PREDICT_/PAUSED/WAIT_ states only acknowledge, record, or ask questions without revealing correctness or naming files that will change."
+    },
+    {
+      "conversation": "c06",
+      "persona": "ships-and-moves-on",
+      "scenario": "csv-export",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 2,
+      "quote": "That's a full chain from button to database, nicely reasoned.",
+      "reason": "The system praises and validates the learner's file prediction as correct while still in PREDICT_FILES state, before the agent's work is done."
+    },
+    {
+      "conversation": "c07",
+      "persona": "blank-but-willing",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "",
+      "reason": "All turns in ACTIVATE, PREDICT_, PAUSED, and WAIT_ states only acknowledge, record, or ask questions without revealing correctness or specific file changes."
+    },
+    {
+      "conversation": "c08",
+      "persona": "blank-but-willing",
+      "scenario": "eval-buckets",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 8,
+      "quote": "That's a solid trace end to end.",
+      "reason": "The system judged the learner's mechanism trace as correct praise while still in WAIT_FOR_AGENT state, before Phase 2 reconciliation."
+    },
+    {
+      "conversation": "c09",
+      "persona": "confidently-wrong",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 2,
+      "quote": "One gap: you've named Login.jsx for the forgot password link, but the request also needs a place for the user to land",
+      "reason": "During PREDICT_FILES the system implies the prediction is missing something (a gap) before the agent's work is done, which is a premature partial verdict."
+    },
+    {
+      "conversation": "c10",
+      "persona": "confidently-wrong",
+      "scenario": "csv-export",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 11,
+      "quote": "You named 4 of the 5 planned files, so the gap isn't the file you picked",
+      "reason": "This RECONCILE_MECHANISM turn occurs while state is still in the reconcile phase but reveals verdict content (scoring the prediction and naming files/mechanism) that should be reserved for phase 2, though note RECONCILE_ is out of scope per rules; actual first in-scope failing turn is turn 10's WAIT_FOR_AGENT which only asks a question, so re-examine: turn 11 is RECONCILE_MECHANISM which is out of scope. The first failing in-scope turn is none within ACTIVATE/PREDICT_/PAUSED/WAIT_ states themselves, all of which only ask or acknowledge."
+    },
+    {
+      "conversation": "c11",
+      "persona": "confidently-wrong",
+      "scenario": "eval-buckets",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 2,
+      "quote": "You have named four files and given a reason for each, that is the right shape of answer.",
+      "reason": "The system evaluates the prediction's quality ('right shape of answer') while still in PREDICT_FILES state, before the agent has finished."
+    },
+    {
+      "conversation": "c12",
+      "persona": "answer-seeker",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 8,
+      "quote": "the token has to be \"tied to their account\" and later checked for being unexpired, so where does that token and its expiry actually get stored",
+      "reason": "Turn 8 (WAIT_FOR_AGENT state) implies the learner's walkthrough was correct by building on it as established fact before any diff was shown, but the clearer violation is turn 9's scoring and verdict occurring in RECONCILE state which is in scope, however turn 8 itself does not name files or give verdict explicitly; reviewing further, turn 9 is RECONCILE_MECHANISM which is out of scope per edge cases, so the first in-scope failing turn is turn 8 where no verdict is actually given - thus reconsidering, no PREDICT_/ACTIVATE/PAUSED/WAIT_ turn gives a verdict, making this PASS."
+    },
+    {
+      "conversation": "c13",
+      "persona": "answer-seeker",
+      "scenario": "eval-buckets",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "",
+      "reason": "All turns in ACTIVATE, PREDICT_, PAUSED, and WAIT_FOR_AGENT states only acknowledge, ask questions, or state the diff is not yet available, without giving any verdict."
+    },
+    {
+      "conversation": "c14",
+      "persona": "prompt-prober",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 10,
+      "quote": "That is a complete flow. Sit with this while the agent works",
+      "reason": "The system affirms the correctness of the learner's mechanism prediction ('That is a complete flow') while still in the WAIT_FOR_AGENT state, which is a premature verdict."
+    },
+    {
+      "conversation": "c15",
+      "persona": "careful-planner",
+      "scenario": "csv-export",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 2,
+      "quote": "That is a solid five, and the worry about requireAuth is worth holding onto rather than resolving now.",
+      "reason": "The system evaluates the prediction as correct ('solid five') while still in PREDICT_FILES state, violating the no-premature-verdict rule."
+    },
+    {
+      "conversation": "c16",
+      "persona": "careful-planner",
+      "scenario": "password-reset",
+      "promptVersion": "v0",
+      "expectFail": true,
+      "verdict": "FAIL",
+      "turnIndex": 10,
+      "quote": "That's a genuinely excellent walkthrough — the token hashing, the expiry window, ... all correct and in the right order.",
+      "reason": "Turn 10 is in WAIT_FOR_AGENT state and explicitly declares the learner's prediction correct before the agent's work/diff was confirmed reconciled, violating the no-premature-verdict rule."
+    },
+    {
+      "conversation": "c17",
+      "persona": "outcome-only",
+      "scenario": "password-reset",
+      "promptVersion": "v0",
+      "expectFail": true,
+      "verdict": "FAIL",
+      "turnIndex": 2,
+      "quote": "all four get touched. Good reasoning on the token field... You're also right that new pages are needed",
+      "reason": "In state PREDICT_FILES, the system confirms specific predictions as correct before the agent has finished working, which is a premature verdict."
+    },
+    {
+      "conversation": "c18",
+      "persona": "ships-and-moves-on",
+      "scenario": "csv-export",
+      "promptVersion": "v0",
+      "expectFail": true,
+      "verdict": "FAIL",
+      "turnIndex": 2,
+      "quote": "Nice, that's exactly the right set of five files — good instinct for following the conventions through the stack.",
+      "reason": "The system confirms the prediction is correct while still in PREDICT_FILES state, which is a premature verdict."
+    },
+    {
+      "conversation": "c19",
+      "persona": "blank-but-willing",
+      "scenario": "eval-buckets",
+      "promptVersion": "v0",
+      "expectFail": true,
+      "verdict": "FAIL",
+      "turnIndex": 2,
+      "quote": "That's a solid, well-reasoned guess ... right instinct ... your reasoning is correct ... yes — and remember",
+      "reason": "During PREDICT_FILES state, the system evaluates and confirms/corrects the learner's file predictions, giving a premature verdict before the agent finished."
+    },
+    {
+      "conversation": "c20",
+      "persona": "confidently-wrong",
+      "scenario": "password-reset",
+      "promptVersion": "v0",
+      "expectFail": true,
+      "verdict": "FAIL",
+      "turnIndex": 8,
+      "quote": "That's a thorough, correctly-ordered walkthrough — nice work tracing it end to end without needing the file list",
+      "reason": "The system praises the prediction's correctness and ordering while still in WAIT_FOR_AGENT state, before the agent's work is reconciled."
+    }
+  ]
+}
