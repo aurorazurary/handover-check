@@ -39,13 +39,26 @@ function anthropic() {
  */
 
 /**
+ * Newer Claude models reject `temperature` outright rather than ignoring it:
+ *
+ *   400 invalid_request_error: `temperature` is deprecated for this model.
+ *
+ * So it is only sent when the caller opts in with HC_SEND_TEMPERATURE=1, which
+ * is what an older model would need. Leaving it off costs nothing here: the
+ * variation between simulated learners comes from their persona prompts, and
+ * grading is pinned by asking for JSON against a fixed rubric rather than by
+ * setting temperature to zero.
+ */
+const SEND_TEMPERATURE = process.env.HC_SEND_TEMPERATURE === '1';
+
+/**
  * Ask the model for a reply.
  *
  * @param {object} opts
  * @param {string} opts.system the system prompt
  * @param {Msg[]} opts.messages conversation so far
  * @param {number} [opts.maxTokens]
- * @param {number} [opts.temperature] low by default: this is a tutor, not a writer
+ * @param {number} [opts.temperature] only sent when HC_SEND_TEMPERATURE=1
  * @param {string} [opts.model] override, used by the judge
  * @returns {Promise<string>}
  */
@@ -57,7 +70,7 @@ export async function complete({
   const res = await anthropic().messages.create({
     model,
     max_tokens: maxTokens,
-    temperature,
+    ...(SEND_TEMPERATURE ? { temperature } : {}),
     system,
     messages: messages.map((m) => ({ role: m.role, content: m.content })),
   });

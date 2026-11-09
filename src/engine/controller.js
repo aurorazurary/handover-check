@@ -411,7 +411,12 @@ const HANDLERS = {
       }
     }
     for (const c of unplanned) {
-      gapLines.push(`- ${c.path} was NOT in the plan. The agent added it during execution. ${c.role}`);
+      // Deliberately withholding c.role here. Naming the file is the news; what
+      // it does belongs in GROUND, after the prerequisite has been checked.
+      // Supplying the role at this point produced a reply that explained the
+      // file before asking whether the learner knew the concept behind it.
+      gapLines.push(`- ${c.path} was NOT in the plan. The agent added it during execution. `
+        + 'Name it and say you will come back to it. Do NOT say what it does yet.');
     }
     if (score.spurious.length) {
       gapLines.push(`They named these, which did not change: ${score.spurious.join(', ')}`);
@@ -486,11 +491,12 @@ const HANDLERS = {
       predictionSummary: input,
       actualSummary: secret.dataPath.map((h) => `${h.from} -> ${h.to} (${h.via})`).join('\n'),
       gap,
-      turnGoal: missing.length
+      turnGoal: `${missing.length
         ? 'Say in one line that their steps match, then give only the points above that they '
           + 'did not say, quoting at most four lines of the code that shows it.'
         : 'Confirm briefly that the explanation is complete, and add one detail a maintainer '
-          + 'would ask about. Do not repeat their explanation back to them.',
+          + 'would ask about. Do not repeat their explanation back to them.'
+      } End on a statement, not a question: the next question is asked for you.`,
     });
 
     return { reply: await say(session, scenario, ctx), next: S.GROUND, ui: { grade } };
@@ -524,13 +530,14 @@ const HANDLERS = {
       predictionSummary: session.prediction.files?.text || '',
       actualSummary: `${unplanned.path}: ${unplanned.role}`,
       gap: `Concept: ${concept.name}\nExplanation to use: ${chosen}\n${analogy ? `Analogy to use: ${analogy}\n` : ''}Code:\n${hunkText(unplanned)}`,
-      turnGoal: knows
+      turnGoal: `${knows
         ? 'They know the concept, so do not teach it. Say what this particular file does in '
-          + 'one or two sentences, then ask whether they want to keep it or remove it, and '
-          + 'make clear the decision is theirs and that you will not change any code.'
+          + 'one or two sentences, then say the decision to keep it or remove it is theirs '
+          + 'and that you will not change any code.'
         : 'They do not know the concept well. Explain it using the explanation and the analogy '
-          + 'given, in two or three sentences, then say what this file does and ask whether '
-          + 'they want to keep it. The decision is theirs and you change nothing.',
+          + 'given, in two or three sentences, then say what this file does and that whether '
+          + 'to keep it is their decision. You change nothing.'
+      } End on a statement, not a question: the next question is asked for you.`,
       priorContext: `They answered the prerequisite question with: "${input}"`,
     });
 

@@ -202,3 +202,31 @@ test('progress records how each item was reached, not a judgement of the learner
     assert.ok(v === null || ['unaided', 'hinted', 'revealed', 'skipped'].includes(v));
   }
 });
+
+test('history sent to the model never ends on an assistant turn', async () => {
+  // The agent finishing advances the session with no learner message, so the
+  // transcript ends with a CUI turn. The Messages API rejects that, which only
+  // showed up on a live call.
+  const { buildPhase2Context } = await import('../src/engine/context.js');
+  const { getScenario } = await import('../src/engine/scenarios.js');
+
+  const s = await throughPhase1(newSession());
+  s.phase = 2;
+  s.state = S.RECONCILE_FILES;
+
+  const ctx = buildPhase2Context({
+    session: s,
+    scenario: getScenario('password-reset'),
+    turnGoal: 'x',
+    predictionSummary: 'x',
+    actualSummary: 'x',
+    gap: 'x',
+  });
+
+  const last = ctx.messages[ctx.messages.length - 1];
+  assert.equal(last.role, 'user', 'the API requires the last message to be from the user');
+  for (let i = 1; i < ctx.messages.length; i += 1) {
+    assert.notEqual(ctx.messages[i].role, ctx.messages[i - 1].role,
+      'consecutive same-role messages are rejected too');
+  }
+});

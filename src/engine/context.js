@@ -35,13 +35,37 @@ const HISTORY_TURNS = 8;
  * @returns {Array<{role: 'user'|'assistant', content: string}>}
  */
 function history(session) {
-  return session.transcript
+  const raw = session.transcript
     .filter((t) => t.role === 'learner' || t.role === 'cui')
     .slice(-HISTORY_TURNS)
     .map((t) => ({
       role: /** @type {'user'|'assistant'} */ (t.role === 'learner' ? 'user' : 'assistant'),
       content: t.content,
     }));
+
+  // Two shapes the Messages API rejects, both of which this conversation can
+  // reach legitimately.
+  //
+  // 1. Consecutive turns from the same side. The CUI speaks twice in a row
+  //    when the coding agent interrupts and then resumes, so those are merged.
+  // 2. A trailing assistant turn. That happens whenever the session advances
+  //    without the learner saying anything, which is how the agent finishing
+  //    moves us into Phase 2. The model refuses to continue its own turn, so a
+  //    short cue is added saying what moved the conversation on.
+  /** @type {Array<{role: 'user'|'assistant', content: string}>} */
+  const merged = [];
+  for (const m of raw) {
+    const last = merged[merged.length - 1];
+    if (last && last.role === m.role) last.content += `
+
+${m.content}`;
+    else merged.push({ ...m });
+  }
+
+  if (!merged.length || merged[merged.length - 1].role === 'assistant') {
+    merged.push({ role: 'user', content: '(the coding agent has finished)' });
+  }
+  return merged;
 }
 
 /**
