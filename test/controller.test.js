@@ -259,3 +259,19 @@ test('a learner who misses the final check leaves with the answer before the car
   assert.ok(!s.violations.some((v) => v.kind === 'stacked-question'),
     'a reply that ends on a statement is never trimmed');
 });
+
+test('a message sent while the agent is paused does not end the run', async () => {
+  const s = newSession();
+  await begin(s);
+  await step(s, 'sure');
+  applyAgentEvent(s, { type: 'approval', command: 'npm install nodemailer' });
+  assert.equal(s.state, S.PAUSED);
+
+  const out = await step(s, 'the route and the controller, I think');
+  assert.equal(out.done, false, 'the run is still going');
+  assert.equal(s.state, S.PAUSED, 'nothing advanced while the agent waits');
+  assert.match(out.reply, /allow or deny/);
+
+  applyAgentEvent(s, { type: 'resume' });
+  assert.equal(s.state, S.PREDICT_FILES, 'and it resumes where it was');
+});

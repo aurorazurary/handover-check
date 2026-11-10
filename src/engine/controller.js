@@ -156,6 +156,18 @@ export async function step(session, input) {
 
   // --- normal flow -----------------------------------------------------------
 
+  // While the agent waits for approval the CUI has nothing to say: the
+  // learner's attention belongs to the agent (DG3). There is no handler for
+  // PAUSED, and a message here used to fall through to "We are done here"
+  // and end the run. Found by clicking through the file picker in a browser.
+  if (session.state === S.PAUSED) {
+    const reply = 'The agent is waiting for you to allow or deny its command, on the left. '
+      + 'Answer that first, then send this again and I will pick it up.';
+    addTurn(session, 'cui', reply);
+    save(session);
+    return { session, reply, ui: uiFor(session, scenario), done: false };
+  }
+
   const handler = HANDLERS[session.state];
   if (!handler) {
     const reply = 'We are done here. Start a new run when the agent next makes a large change.';
