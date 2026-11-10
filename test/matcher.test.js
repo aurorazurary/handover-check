@@ -97,3 +97,32 @@ test('scoring is deterministic', () => {
   const b = JSON.stringify(scorePrediction(p, CHANGES, REPO));
   assert.equal(a, b);
 });
+
+// --- found in a live run --------------------------------------------------------
+
+test('with the picker, only picked files count, and feature words earn nothing', async () => {
+  const { getScenario } = await import('../src/engine/scenarios.js');
+  const sc = getScenario('password-reset');
+  // The learner's message, verbatim, from the live run that found the bug.
+  const text = 'Files: server/models/User.js, server/routes/auth.js, server/middleware/requireAuth.js, '
+    + 'server/lib/mailer.js, server/controllers/authController.js, client/src/pages/Login.jsx, '
+    + "client/src/routes.jsx.\nI'm guessing that it's using the mailer and some user information to "
+    + 'retrieve for existing emails and of course the auth to make sure that the user is actually '
+    + 'valid to reset their password';
+  const r = scorePrediction({ text }, sc.secret.changes, sc.public.repoMap, { request: sc.public.request });
+  assert.deepEqual(r.score, { predicted: 3, total: 6 }, 'three picked files were planned, not five');
+  assert.ok(!r.hit.includes('client/src/pages/ResetPassword.jsx'), '"reset their password" is not a file name');
+  assert.ok(!r.hit.includes('client/src/api/auth.js'), '"the auth" is not a pick');
+  assert.ok(r.spurious.includes('server/lib/mailer.js'), 'a wrong pick is reported as wrong');
+});
+
+test('without the picker, typed names still count but the request words do not', async () => {
+  const { getScenario } = await import('../src/engine/scenarios.js');
+  const sc = getScenario('password-reset');
+  const opts = { request: sc.public.request };
+  const named = scorePrediction({ text: 'a new ResetPassword page and the user model' }, sc.secret.changes, sc.public.repoMap, opts);
+  assert.ok(named.hit.includes('client/src/pages/ResetPassword.jsx'));
+  assert.ok(named.hit.includes('server/models/User.js'));
+  const described = scorePrediction({ text: 'it lets the user reset their password by email' }, sc.secret.changes, sc.public.repoMap, opts);
+  assert.equal(described.score.predicted, 0, 'describing the feature names no files');
+});

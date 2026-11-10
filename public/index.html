@@ -293,7 +293,10 @@ $('restart').onclick = () => location.reload();
 // is a change to who posts to /api/session/:id/agent, not to the engine.
 function startAgent() {
   const total = state.scenario.planFileCount;
-  const tick = Math.max(1800, (state.scenario.estimatedAgentRunSeconds * 1000) / total / 4);
+  // The scenario's own run time. It used to be divided by four for demos, and
+  // a real learner could not keep pace: in a live run the agent finished while
+  // they were still on the second question.
+  const tick = Math.max(1800, (state.scenario.estimatedAgentRunSeconds * 1000) / total);
   state.agentTimer = setInterval(async () => {
     if (state.ui?.agent?.status === 'waiting') return;
     state.filesDone += 1;
@@ -317,7 +320,9 @@ function startAgent() {
       state.ui = { ...state.ui, agent: { ...state.ui.agent, status: 'done' } };
       renderAgent();
       sysBubble('The agent has finished.');
-      send('', true);            // advance into reconciliation
+      // Only advance if they have finished predicting; otherwise it happens
+      // when they send their last answer (see send()).
+      if (state.ui && state.ui.state === 'WAIT_FOR_AGENT') send('', true);
     } else {
       renderAgent();
     }
@@ -416,7 +421,10 @@ function renderOptions(options) {
 }
 
 function renderFiles(ui) {
-  if (!ui.files || !ui.fileScore) return;
+  // Once per run. Every Phase 2 reply carries the score, and the chips used to
+  // be drawn again after each one.
+  if (!ui.files || !ui.fileScore || state.filesShown === state.sessionId) return;
+  state.filesShown = state.sessionId;
   const s = ui.fileScore;
   const wrap = document.createElement('div');
   wrap.className = 'panelfiles';
@@ -572,6 +580,11 @@ async function send(text, hidden = false) {
     if (out.ui.card) renderCard(out.ui.card);
     renderPhase(out.ui);
     renderAgent();
+    // The agent finished while they were still predicting: move straight on to
+    // the comparison instead of leaving them waiting for nothing.
+    if (!hidden && out.ui.state === 'WAIT_FOR_AGENT' && out.ui.agent && out.ui.agent.status === 'done') {
+      setTimeout(() => send('', true), 300);
+    }
     if (out.done) {
       state.finished = true;
       $('input').disabled = true;

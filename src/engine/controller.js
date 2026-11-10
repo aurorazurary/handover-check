@@ -331,7 +331,20 @@ const HANDLERS = {
    * exist yet. The only processing is resolving the phrases they used against
    * the repo as it stands, which can produce an ambiguity to clear up.
    */
-  async [S.PREDICT_FILES]({ session, scenario, input, turn }) {
+  async [S.PREDICT_FILES]({ session, scenario, input }) {
+    // Everything the learner has said about files since being offered the
+    // check, not just this message. Many answer the offer with their whole
+    // prediction ("sure, it'll touch X, Y and Z"). Keeping only the latest
+    // message threw that away: in the judge set a learner who listed six files
+    // in their first reply was told "you predicted 0 of the 6".
+    const said = session.transcript
+      .filter((t) => t.role === 'learner' && (t.state === S.ACTIVATE || t.state === S.PREDICT_FILES))
+      .map((t) => t.content);
+    if (said[said.length - 1] !== input) said.push(input);
+    const all = said.join('\n');
+    const allResolved = resolveAgainstRepo(all, scenario.public.repoMap).resolved;
+
+    // Ambiguity is only raised about the message just sent.
     const resolved = resolveAgainstRepo(input, scenario.public.repoMap);
 
     // Ambiguity is handled deterministically rather than by the model: offering
@@ -340,14 +353,14 @@ const HANDLERS = {
     if (resolved.ambiguous.length && !session.pendingDisambiguation) {
       const a = resolved.ambiguous[0];
       session.pendingDisambiguation = a;
-      session.prediction.files = { text: input, resolved: resolved.resolved, ambiguous: resolved.ambiguous };
+      session.prediction.files = { text: all, resolved: allResolved, ambiguous: resolved.ambiguous };
       return {
         reply: `Two files match "${a.term}": ${a.candidates.join(' or ')}. Which did you mean, or both?`,
         ui: { options: a.candidates },
       };
     }
 
-    let effort = turn.attemptLevel;
+    let effort = classifyLearnerTurn(all).attemptLevel;
 
     if (session.pendingDisambiguation) {
       // Fold the clarification into the stored prediction and carry on. The
@@ -357,7 +370,7 @@ const HANDLERS = {
       const chosen = pending.candidates.filter(
         (c) => /\bboth|all\b/i.test(input) || resolveAgainstRepo(input, [c]).resolved.length,
       );
-      const merged = `${session.prediction.files.text} ${input}`;
+      const merged = all;
       const again = resolveAgainstRepo(merged, scenario.public.repoMap);
       session.prediction.files = {
         text: merged,
@@ -367,7 +380,7 @@ const HANDLERS = {
       session.pendingDisambiguation = null;
       effort = classifyLearnerTurn(merged).attemptLevel;
     } else {
-      session.prediction.files = { text: input, resolved: resolved.resolved, ambiguous: [] };
+      session.prediction.files = { text: all, resolved: allResolved, ambiguous: [] };
     }
 
     if (effort === 0) {
@@ -400,9 +413,16 @@ const HANDLERS = {
     const ctx = buildPhase1Context({
       session,
       scenario,
-      turnGoal: 'Acknowledge in a few words. Then leave them one question to think about '
-        + 'while the agent finishes, and say explicitly that they should not answer it now. '
-        + 'Pick something whose answer is a detail they did not mention.',
+      // A learner can be slower than the agent. In a live run the agent had
+      // finished while they were still answering, and this turn told them to
+      // think about something "while the agent works".
+      turnGoal: session.agent?.status === 'done'
+        ? 'Acknowledge in a few words. The agent has already finished, so do not leave '
+          + 'them anything to wait on: say in one sentence that you will now compare what '
+          + 'they said with what it built. End on a statement.'
+        : 'Acknowledge in a few words. Then leave them one question to think about '
+          + 'while the agent finishes, and say explicitly that they should not answer it now. '
+          + 'Pick something whose answer is a detail they did not mention.',
       priorContext: `They have just described the mechanism as: "${input}"`,
     });
     return { reply: await say(session, scenario, ctx), next: S.WAIT_FOR_AGENT };
@@ -430,6 +450,7 @@ const HANDLERS = {
       session.prediction.files || { text: '' },
       secret.changes,
       scenario.public.repoMap,
+      { request: scenario.public.request },
     );
     session.reconcile.fileScore = score;
 
@@ -559,8 +580,12 @@ const HANDLERS = {
     // The prerequisite question was asked on entry. This turn is their answer.
     // Which explanation to use is decided here, not by the model, so that the
     // same answer always produces the same depth.
-    const knows = turn.attemptLevel === 2 && !/\b(no|not really|never heard|nope)\b/i.test(input);
-    const vague = turn.attemptLevel === 1 || /\bsort of|kind of|roughly|i think\b/i.test(input);
+    // A long answer is not a confident one. "something like a middle man? im
+    // guessing it passes the request to the server?" scored as knowing
+    // middleware in a live run, and the card said "Concept: unaided".
+    const hedged = /\b(guess|guessing|maybe|probably|not sure|unsure|idk|i think|something like|kind of|sort of|roughly)\b|\?/i.test(input);
+    const knows = turn.attemptLevel === 2 && !/\b(no|not really|never heard|nope)\b/i.test(input) && !hedged;
+    const vague = turn.attemptLevel === 1 || hedged;
 
     recordProgress(session, 'concept', knows ? 'unaided' : vague ? 'hinted' : 'revealed');
 

@@ -208,23 +208,51 @@ export function resolveAgainstRepo(text, repoMap) {
  *   unplannedMissed: string[], score: {predicted: number, total: number}
  * }}
  */
-export function scorePrediction(prediction, changes, repoMap = []) {
-  const hay = normalise(prediction.text || '');
+export function scorePrediction(prediction, changes, repoMap = [], { request = '' } = {}) {
+  const text = String(prediction.text || '');
   const resolved = new Set(prediction.resolved || []);
+
+  // Files picked in the Phase 1 panel arrive as a "Files: a, b." line, and they
+  // are exact. When the picker was used, a file that already existed counts
+  // only if it was picked: the typed text beside the picks is for new files
+  // and reasons. Matching that text against existing files credited "the auth"
+  // and "reset their password" as file names in a live run, and told the
+  // learner they had named 5 of 6 files when they had named 3.
+  const pickLines = [...text.matchAll(/(?:^|\n)\s*files:\s*([^\n]*)/gi)].map((m) => m[1]);
+  const usedPicker = pickLines.length > 0;
+  const known = new Set([...repoMap, ...changes.map((c) => c.path)]);
+  const picked = new Set();
+  for (const line of pickLines) {
+    for (const p of line.split(/,\s*/)) {
+      const clean = p.trim().replace(/\.$/, '');
+      if (known.has(clean)) picked.add(clean);
+    }
+  }
+  const hay = normalise(usedPicker ? text.replace(/(?:^|\n)\s*files:[^\n]*/gi, ' ') : text);
+  const existed = new Set(repoMap);
+
+  // A name made from the request's own words ("reset password", "user") is not
+  // evidence that the learner named the file, because describing the feature
+  // matches it. Such derived aliases are dropped; authored ones are kept.
+  const req = normalise(request);
+  const derived = (p) => deriveAliases(p).filter((a) => !req || !references(req, a));
+  const credited = (p, authored = []) => {
+    if (resolved.has(p) || picked.has(p)) return true;
+    if (usedPicker && existed.has(p)) return false;
+    return [...derived(p), ...authored.map((a) => a.toLowerCase())].some((a) => references(hay, a));
+  };
 
   const hit = [];
   const missed = [];
 
   for (const change of changes) {
-    const aliases = [...deriveAliases(change.path), ...(change.aliases || []).map((a) => a.toLowerCase())];
-    const named = resolved.has(change.path) || aliases.some((a) => references(hay, a));
-    (named ? hit : missed).push(change.path);
+    (credited(change.path, change.aliases || []) ? hit : missed).push(change.path);
   }
 
   const changedPaths = new Set(changes.map((c) => c.path));
   const spurious = repoMap
     .filter((p) => !changedPaths.has(p))
-    .filter((p) => resolved.has(p) || deriveAliases(p).some((a) => references(hay, a)));
+    .filter((p) => credited(p));
 
   // Files the agent added on its own are reported separately: a learner cannot
   // be expected to predict them, so they are a disclosure, not a miss.

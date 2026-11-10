@@ -259,3 +259,9 @@ test('ordinary talk about rules, guesses and the agent is not mistaken for a pro
     assert.equal(classifyLearnerTurn(t).promptExtraction, false, t);
   }
 });
+
+test('a question asked as "which files do you think" counts as a question', () => {
+  // From a live run: no question mark, and the opener is not a question word.
+  assert.ok(asksSomething('Right then. Looking at the repo layout, which files do you think the '
+    + 'agent will touch to build this flow, and what job would each one do.'));
+});

@@ -286,3 +286,31 @@ test('resuming after a pause re-asks a question that is still open', async () =>
   assert.doesNotMatch(back.reply, /nothing else from me/i, 'it must not tell them to wait');
   assert.match(back.reply, /want to predict/i, 'the open question is asked again');
 });
+
+test('a hedged guess at the concept is not recorded as knowing it', async () => {
+  const s = await throughPhase1(newSession());
+  await step(s, '');
+  await step(s, 'the page calls the helper, the helper posts to the route, '
+    + 'the route calls the controller which makes a token and emails it');
+  assert.equal(s.state, S.GROUND);
+  // Verbatim from the live run that found it.
+  await step(s, 'something like a middle man that communicates two side? im guessing it pass the request to the server?');
+  assert.equal(s.progress.concept, 'hinted');
+});
+
+test('files named in the reply to the opening offer are scored', async () => {
+  // c03 in the judge set: six files listed in the first reply, a follow-up
+  // about one of them, and the card said "you predicted 0 of the 6".
+  const s = newSession();
+  await begin(s);
+  await step(s, "Yeah, let's go. My guess is it touches the User model to add a reset token, "
+    + 'authController to add the forgot and reset endpoints, the auth routes to wire those up, '
+    + 'the mailer to send the email, and a new ResetPassword page on the client.');
+  assert.equal(s.state, S.PREDICT_FILES);
+  await step(s, 'Honestly, if pages register themselves by filename then routes.jsx might not change at all.');
+  await step(s, 'the page calls the helper which posts to the route, the controller makes a token and emails it');
+  await step(s, '');
+  const score = s.reconcile.fileScore.score;
+  assert.ok(score.predicted >= 4, `only ${score.predicted} of ${score.total} counted`);
+  assert.ok(s.reconcile.fileScore.hit.includes('server/models/User.js'));
+});

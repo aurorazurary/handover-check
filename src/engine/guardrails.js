@@ -219,7 +219,7 @@ const ASKS_OPENERS = [
 ];
 
 /** Requests to the learner that are requests wherever they sit in the sentence. */
-const ASKS_ANYWHERE = /\b(tell me|say back|walk me through|talk me through)\b/i;
+const ASKS_ANYWHERE = /\b(tell me|say back|walk me through|talk me through|do you (?:think|expect|reckon))\b/i;
 
 /** Connectives that can open a question without stopping it being one. */
 const LEAD_IN = /^(so|and|but|then|now|first|okay|ok|right|given (that|this|all that)|with that in mind)\b[,:]?\s*/i;
