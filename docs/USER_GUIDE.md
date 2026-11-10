@@ -19,11 +19,60 @@ It does not touch your code. It has no ability to.
 
 ## Starting
 
+Everything runs from the **project folder**: the `handover-check` folder you
+cloned or unzipped, the one that contains `package.json`. Not `src`, not
+`public`, and not the folder above it.
+
+### Open a terminal in the project folder
+
+- **VS Code:** File > Open Folder, choose `handover-check`, then Terminal >
+  New Terminal. It opens in the right place.
+- **Windows File Explorer:** open the `handover-check` folder, click the
+  address bar, type `cmd` and press Enter.
+- **Any terminal:** `cd` into it, for example
+  `cd "C:/Users/you/Desktop/handover-check"`.
+
+To check you are in the right place, list the folder (`dir` on Windows,
+`ls` elsewhere). You should see `package.json`, `src`, `public` and
+`scenarios`.
+
+### The first time only
+
+You need Node.js 22 or newer (`node -v` to check).
+
+```bash
+npm install
+```
+
+Then copy `.env.example` to a new file called `.env` in the same folder, and
+put your Anthropic API key on the `ANTHROPIC_API_KEY=` line. Skip the key if
+you only want the free demo mode below.
+
+### Every time
+
 ```bash
 npm start
 ```
 
-Open http://localhost:3000, pick a run, and set two things:
+The terminal prints `Handover Check on http://localhost:3000`. Open that
+address in your browser. Leave the terminal open while you use it, and press
+Ctrl+C in it to stop.
+
+**Free demo mode**, with canned replies instead of the model and no API key
+needed:
+
+| Terminal | Command |
+|---|---|
+| Git Bash, macOS, Linux | `HC_PROVIDER=mock npm start` |
+| PowerShell | `$env:HC_PROVIDER='mock'; npm start` |
+| Command Prompt (cmd) | `set "HC_PROVIDER=mock" && npm start` |
+
+Demo mode shows the whole interaction but does not grade your explanations, so
+use the real mode for an actual check.
+
+### Then
+
+Pick a run, and set two things:
 
 **Only interrupt me above N files.** The default is 4. If the agent's plan is
 smaller than that, Handover Check stays quiet and you will not hear from it.
@@ -38,6 +87,22 @@ it is not stored anywhere beyond the session.
 
 The left panel is the agent. You will see a count of how many files it has
 written, never which ones. That is deliberate.
+
+**The question you need to answer is always in a marked box** at the end of
+the message, labelled *Your turn*. While the agent is still working, it may
+leave you a question labelled *To think about*: hold onto it, you will not be
+asked to answer it yet.
+
+**Picking files.** When it asks which files the agent will touch, a panel
+opens above the message box showing the project's files, grouped by folder.
+Click the ones you think will change; click again to unpick. Then type what
+each one will do in the message box, along with any **new** files you expect.
+New files cannot be clicked because they do not exist yet. Send, and your
+picks go with what you typed.
+
+The panel shows the project as it was before the agent started, so it cannot
+tell you anything about the change. If the agent stops to ask for permission
+while you are picking, your picks are kept.
 
 You get two questions.
 
