@@ -326,6 +326,7 @@ function startAgent() {
 
 async function approve() {
   state.approved = true;
+  $('busy').textContent = '';
   const out = await api(`/api/session/${state.sessionId}/agent`, { type: 'resume' });
   state.ui = out.ui;
   if (out.reply) cuiBubble(out.reply, out.ui);
@@ -396,7 +397,7 @@ function cuiBubble(text, ui) {
   box.append(lbl, document.createTextNode(a.question));
   d.appendChild(box);
   $('chat').scrollTop = $('chat').scrollHeight;
-  maybeSpeak(text);
+  maybeSpeak(a.question);
 }
 const meBubble = (t) => bubble('me', 'You', t);
 const sysBubble = (t) => bubble('sys', '', t);
@@ -458,6 +459,10 @@ function renderCard(card) {
  * they do not exist yet; the learner types those alongside.
  */
 function renderPicker(ui) {
+  // An agent pause is not the learner's turn ending. Leave the panel exactly as
+  // it is, picks and all, so a permission request does not snatch it away
+  // mid-pick. Reported in use: "it interrupts my typing".
+  if (ui && ui.state === 'PAUSED') return;
   const repo = state.scenario && state.scenario.repoMap;
   const on = !state.finished && !!repo && !!ui && ui.state === 'PREDICT_FILES';
   $('picker').hidden = !on;
@@ -546,6 +551,12 @@ function renderPhase(ui) {
 async function send(text, hidden = false) {
   if (state.busy || state.finished) return;
   if (!hidden && !text.trim()) return;
+  // While the agent waits for permission the CUI does not take a turn (DG3).
+  // Nothing is sent and nothing is cleared: the text and the picks stay put.
+  if (!hidden && state.ui && state.ui.state === 'PAUSED') {
+    $('busy').textContent = 'The agent is waiting for you on the left. Allow or deny it first; your answer is still here.';
+    return;
+  }
   state.busy = true;
   $('send').disabled = true;
   $('busy').textContent = 'thinking…';
@@ -593,9 +604,13 @@ if (SR) {
   recog.continuous = false;
   recog.interimResults = true;
   recog.lang = 'en-GB';
+  // Each session of dictation starts from whatever is already in the box, and
+  // adds to it. Replacing the value wiped earlier text whenever the mic was
+  // stopped and started again. Reported in use.
   recog.onresult = (e) => {
-    const t = [...e.results].map((r) => r[0].transcript).join('');
-    $('input').value = t;
+    const t = [...e.results].map((r) => r[0].transcript).join('').trim();
+    const base = state.dictationBase || '';
+    $('input').value = base && t ? `${base}${/\s$/.test(base) ? '' : ' '}${t}` : (base || t);
   };
   recog.onend = () => { state.listening = false; $('mic').classList.remove('rec'); $('voiceBtn').textContent = 'Voice off'; };
 } else {
@@ -607,6 +622,7 @@ function toggleMic() {
   if (!recog) return;
   if (state.listening) { recog.stop(); return; }
   state.listening = true;
+  state.dictationBase = $('input').value;
   $('mic').classList.add('rec');
   $('voiceBtn').textContent = 'Voice on';
   recog.start();
