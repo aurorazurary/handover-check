@@ -678,7 +678,19 @@ export function applyAgentEvent(session, event) {
     session.returnState = null;
     session.agent.status = 'working';
     session.agent.pendingApproval = null;
-    const reply = 'Back. Nothing else from me until it is done.';
+    // "Nothing else from me" is only true once the learner has finished
+    // predicting. If a question was still open when the agent paused, say it
+    // again: the old line told a learner who had not yet answered the opening
+    // question to wait, and the agent finished while they did.
+    let reply = 'Back. Nothing else from me until it is done.';
+    if (session.state !== S.WAIT_FOR_AGENT) {
+      const prior = [...session.transcript].reverse()
+        .find((t) => t.role === 'cui' && t.state === session.state);
+      const open = prior ? endOnStatement(prior.content).stripped.join(' ') : '';
+      reply = open
+        ? `Back. Still over to you: ${open}`
+        : 'Back. Carry on with your answer whenever you are ready.';
+    }
     addTurn(session, 'cui', reply);
     save(session);
     return { session, reply };

@@ -275,3 +275,14 @@ test('a message sent while the agent is paused does not end the run', async () =
   applyAgentEvent(s, { type: 'resume' });
   assert.equal(s.state, S.PREDICT_FILES, 'and it resumes where it was');
 });
+
+test('resuming after a pause re-asks a question that is still open', async () => {
+  const s = newSession();
+  await begin(s);
+  // The agent pauses before the learner has answered the opening question.
+  applyAgentEvent(s, { type: 'approval', command: 'npm install nodemailer' });
+  const back = applyAgentEvent(s, { type: 'resume' });
+  assert.equal(s.state, S.ACTIVATE);
+  assert.doesNotMatch(back.reply, /nothing else from me/i, 'it must not tell them to wait');
+  assert.match(back.reply, /want to predict/i, 'the open question is asked again');
+});
