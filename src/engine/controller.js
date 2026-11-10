@@ -421,8 +421,9 @@ const HANDLERS = {
           + 'them anything to wait on: say in one sentence that you will now compare what '
           + 'they said with what it built. End on a statement.'
         : 'Acknowledge in a few words. Then leave them one question to think about '
-          + 'while the agent finishes, and say explicitly that they should not answer it now. '
-          + 'Pick something whose answer is a detail they did not mention.',
+          + 'while the agent finishes. Say they can answer it now or hold it, and that you '
+          + 'will check it once the agent is done. Pick something whose answer is a detail '
+          + 'they did not mention.',
       priorContext: `They have just described the mechanism as: "${input}"`,
     });
     return { reply: await say(session, scenario, ctx), next: S.WAIT_FOR_AGENT };
@@ -433,7 +434,17 @@ const HANDLERS = {
    * agent finishes; a typed message here just moves it along, which is what the
    * headless test harness does.
    */
-  async [S.WAIT_FOR_AGENT]({ session, scenario }) {
+  async [S.WAIT_FOR_AGENT]({ session, scenario, input }) {
+    // A learner who answers the question left for them while the agent works
+    // is giving an answer, not telling us the agent is done. This used to
+    // treat any message as "the agent has finished": the answer was thrown
+    // away and the diff was revealed while the agent was still working. Found
+    // in use, by a learner asking why they should not answer it now.
+    if (String(input || '').trim() && session.agent.status !== 'done') {
+      session.prediction.whileWaiting = [...(session.prediction.whileWaiting || []), input];
+      const reply = 'Noted, I will keep that and check it against what the agent built once it is done.';
+      return { reply };
+    }
     session.agent.status = 'done';
     session.phase = 2;
     session.state = S.RECONCILE_FILES;
@@ -480,7 +491,11 @@ const HANDLERS = {
     const ctx = buildPhase2Context({
       session,
       scenario,
-      predictionSummary: session.prediction.files?.text || '(no prediction)',
+      // An answer given while the agent worked is part of what gets checked.
+      predictionSummary: (session.prediction.files?.text || '(no prediction)')
+        + (session.prediction.whileWaiting?.length
+          ? `\nWhile the agent worked they also said: ${session.prediction.whileWaiting.join(' ')}`
+          : ''),
       actualSummary: secret.changes.map((c) => `- ${c.path}${c.inPlan ? '' : '  [not in plan]'}`).join('\n'),
       gap: gapLines.join('\n') || 'They named every file. There is nothing to add here.',
       turnGoal: `Tell them the score in one line: they named ${score.score.predicted} of the `

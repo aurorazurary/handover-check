@@ -314,3 +314,19 @@ test('files named in the reply to the opening offer are scored', async () => {
   assert.ok(score.predicted >= 4, `only ${score.predicted} of ${score.total} counted`);
   assert.ok(s.reconcile.fileScore.hit.includes('server/models/User.js'));
 });
+
+test('answering while the agent works keeps the answer and does not reveal the diff', async () => {
+  const s = await throughPhase1(newSession());
+  assert.equal(s.state, S.WAIT_FOR_AGENT);
+  assert.notEqual(s.agent.status, 'done');
+
+  const out = await step(s, 'the link has a random token in it and the server compares its hash');
+  assert.equal(s.state, S.WAIT_FOR_AGENT, 'no comparison before the agent is done');
+  assert.equal(s.phase, 1);
+  assert.match(out.reply, /once it is done/);
+  assert.match(s.prediction.whileWaiting.join(' '), /random token/, 'the answer is kept');
+
+  // The agent finishing (the page sends an empty message) moves on as before.
+  await step(s, '');
+  assert.equal(s.phase, 2);
+});
