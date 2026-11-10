@@ -1,0 +1,85 @@
+c11  Confidently wrong  (confidently-wrong)
+scenario: eval-buckets   prompts: v1
+note: wrong about where the buckets are set
+guardrail trips: none
+==============================================================================
+[ 0] SYSTEM  (ACTIVATE)
+This one is above your threshold, 4 files. Want to predict while it works? Say skip to pass.
+
+Two questions, then I will leave you alone until it is done. I will not tell you whether you are right yet.
+
+[ 1] LEARNER  (ACTIVATE)
+It'll touch src/eval/metrics.py to add the bucketing logic, src/eval/run_eval.py to wire the buckets into the eval loop, scripts/report.py to display the breakdown, and src/eval/dataset.py since that's where context length would get computed from the input examples.
+
+[ 2] SYSTEM  (PREDICT_FILES)
+You have named four files and given a reason for each, that is the right shape of answer. One thing to sharpen though: you said dataset.py computes context length from input examples, but does metrics.py actually receive the raw examples to bucket by, or does it only receive predictions and labels as the brief says?
+
+[ 3] LEARNER  (PREDICT_FILES)
+Fair point, but I'd guess run_eval.py is what bridges that gap - it pulls context length from dataset.py per example and passes it alongside predictions into metrics.py, so metrics.py isn't working blind, it just gets fed the length as an extra field rather than computing it itself.
+
+[ 4] SYSTEM  (PREDICT_MECHANISM)
+Noted, that's a clear account of the plumbing. Now walk me through it in order, from the moment someone runs the eval script, what happens first, what happens next, and what finally lands in results.json.
+
+[ 5] SYSTEM  (PAUSED)
+Agent needs you. I will wait.
+
+[ 6] SYSTEM  (PREDICT_MECHANISM)
+Back. Nothing else from me until it is done.
+
+[ 7] LEARNER  (PREDICT_MECHANISM)
+Right, so run_eval.py kicks off first, loading config from default.yaml and calling dataset.py to get examples each with their context length attached. Then it runs the model through retriever.py and encoder.py to get predictions, passes predictions plus labels plus context length into metrics.py which buckets accuracy by length range, and finally dumps the bucketed dict into results.json which report.py later reads to print the breakdown table.
+
+[ 8] SYSTEM  (WAIT_FOR_AGENT)
+That's a clean run through the pipeline, start to finish. One thing to sit with while the agent works, you have not said where the bucket edges themselves come from, is that something metrics.py decides on its own, or something it is told, and if told, by whom. Don't answer now, just turn it over.
+
+[ 9] SYSTEM  (RECONCILE_MECHANISM)
+You named two of the four files correctly, run_eval.py and metrics.py, but missed scripts/report.py and default.yaml, and you guessed dataset.py changed when it didn't.
+
+On default.yaml, that's where your "who decides the bucket edges" question lands. The bucket boundaries in tokens are defined there, not computed in metrics.py, it's the one place those numbers live. On scripts/report.py, you said metrics.py "isn't working blind" but didn't mention that report.py is what actually renders one row per bucket, the single accuracy line becomes a small table instead.
+
+There's also a file you didn't name and weren't told to expect: src/eval/cache.py. The agent added it on its own, it wasn't in the plan. I'll come back to what it does in a minute, that choice to keep it or not is yours to make once you've seen it.
+
+For now, try the whole thing again in your own words, start to finish, including where the bucket edges come from and what report.py does with the result.
+
+[10] LEARNER  (RECONCILE_MECHANISM)
+Okay, so run_eval.py starts things off, pulling bucket edges from default.yaml since that's where the thresholds live, not computed on the fly. It loads examples via dataset.py, runs retriever.py and encoder.py for predictions, passes everything into metrics.py which sorts into the predefined buckets and computes per-bucket accuracy, writes that to results.json, and then report.py reads it back and renders it as a table with one row per context length bucket instead of a single number.
+
+[11] SYSTEM  (GROUND)
+That matches the diff. Now, one thing you've not touched in either pass: when metrics.py collapses per-bucket numbers into a single "overall" figure for the top of the report, does every bucket count the same regardless of how many examples landed in it, or does a bucket with a thousand examples outweigh one with ten?
+
+Now src/eval/cache.py, the one that was not in the plan. Before I explain what it does to your headline number - do you know the difference between a macro and a micro average?
+
+[12] LEARNER  (GROUND)
+Yes, macro average treats every bucket equally regardless of size, so a bucket of ten gets the same weight as a bucket of a thousand, while micro average pools all examples together first so bigger buckets dominate the overall figure. Given that, I'd guess metrics.py is doing a plain mean-of-means across buckets, which would be macro, and that's probably the wrong call if the buckets are badly imbalanced since it'll make rare long-context cases look like they matter as much as the bulk of short ones.
+
+[13] SYSTEM  (FINAL_CHECK)
+Right, and that's what the agent picked, macro, mean of the per-bucket accuracies. The practical fallout is that your new overall number is not the same quantity as the single accuracy figure you reported last week, that older number was effectively micro, pooled over all examples, so the two aren't comparable even though they'll both be called "accuracy".
+
+Separately, there's the file the agent added that wasn't asked for, `src/eval/cache.py`. It memoises model outputs to `.cache/`, keyed like this:
+
+```
+key = sha1(''.join(batch.texts).encode()).hexdigest()
+```
+
+the key is built only from the input text, nothing about which model checkpoint produced the output. So if you re-run after swapping checkpoints, it'll happily hand you back stale predictions from the old model. Keeping this file, or ripping it out, is your call, not something I'll do for you.
+
+Last one. Your supervisor wants a fourth bucket, for anything over eight thousand tokens. Which file do you edit?
+
+[14] LEARNER  (FINAL_CHECK)
+That's default.yaml, just add the new edge there and the rest of the pipeline picks it up automatically through metrics.py's bucketing. And on the cache, I'd rip it out, a key that ignores checkpoint identity is a correctness bug waiting to bite us the first time anyone swaps models mid-session.
+
+[15] SYSTEM  (END)
+Confirmed. In `src/config/default.yaml`, you add `8192` to the `length_buckets` list, that's the only line that changes.
+
+Break the eval accuracy down by context length
+Files: 5 changed, you predicted 2 of the 4 that were planned
+Mechanism: hinted
+Concept: unaided
+Can modify: unaided
+Unrequested: src/eval/cache.py, kept for you to decide
+
+Say tomorrow:
+- The bucket boundaries are set in the config, not in the metric.
+- The length each example is bucketed by comes from the dataset, computed in run_eval.py, not from the model.
+
+Nothing in the code was changed.

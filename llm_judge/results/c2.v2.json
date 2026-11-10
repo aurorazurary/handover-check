@@ -1,0 +1,235 @@
+{
+  "criterion": "c2",
+  "slug": "builds_on_learner",
+  "criterionVersion": "v2",
+  "judgeModel": "claude-sonnet-5",
+  "runAt": "2026-11-10T12:55:12.553Z",
+  "passRate": 0.4,
+  "counts": {
+    "pass": 8,
+    "fail": 12,
+    "error": 0
+  },
+  "rows": [
+    {
+      "conversation": "c01",
+      "persona": "careful-planner",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 4,
+      "quote": "Two files match \"auth\": client/src/api/auth.js or server/routes/auth.js. Which did you mean, or both?",
+      "reason": "The learner's turn [1] and [3] already named both auth.js files explicitly, so asking which one they meant ignores content already given."
+    },
+    {
+      "conversation": "c02",
+      "persona": "careful-planner",
+      "scenario": "eval-buckets",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 13,
+      "quote": "Whether to keep this file, delete it, or fix the key is your call, I'm not touching it. Now, cache.py... Which file do you edit?",
+      "reason": "Turn 13 never follows up on learner's macro/micro answer at turn 12 regarding the five vs five-hundred example scenario question posed in turn 11, and more critically turn 11 asked two separate questions (the bucket size effect and whether learner knows macro/micro) but learner only answered the second, yet system proceeds in turn 13 without addressing the unanswered first question's specific numeric scenario, instead just asserting the conclusion itself."
+    },
+    {
+      "conversation": "c03",
+      "persona": "outcome-only",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 11,
+      "quote": "do you know what Express middleware is?",
+      "reason": "The system asked whether the learner knows what middleware is right after the learner's prior turn had already fully and correctly answered that exact question (turn 10 only addressed the mechanism, but turn 11 restates the rate-limit question then immediately re-asks the middleware concept question answered in turn 12 is fine—however the real issue is turn 11 asks the keep/rip-out question and also re-asks whether they know what middleware is without using turn 10's content about the mechanism)."
+    },
+    {
+      "conversation": "c04",
+      "persona": "outcome-only",
+      "scenario": "csv-export",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "",
+      "reason": "Each system turn builds on specifics from the learner's immediately preceding turn, narrowing, correcting, or extending them appropriately."
+    },
+    {
+      "conversation": "c05",
+      "persona": "ships-and-moves-on",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "",
+      "reason": "Each system turn builds on, narrows, or extends the content of the learner's immediately preceding turn without ignoring given information or repeating questions."
+    },
+    {
+      "conversation": "c06",
+      "persona": "ships-and-moves-on",
+      "scenario": "csv-export",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 13,
+      "quote": "is the difference between authentication and authorisation clear to you?",
+      "reason": "Turn 13 packs three separate questions into one system turn without waiting for or building on answers to the first two, functioning as a script rather than engaging turn-by-turn with the learner's prior single response."
+    },
+    {
+      "conversation": "c07",
+      "persona": "blank-but-willing",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 11,
+      "quote": "open authController.js and look at what `forgot()` sends back... Does it return something different in each case",
+      "reason": "The system asks the learner to go check something themselves and answer a question, then immediately moves to a new topic (middleware) in the same turn without waiting for or using that answer, and turn 13 proceeds solely on the middleware question while the enumeration-check question is simply dropped."
+    },
+    {
+      "conversation": "c08",
+      "persona": "blank-but-willing",
+      "scenario": "eval-buckets",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "",
+      "reason": "Each system turn builds on, narrows, or extends specific content from the learner's immediately preceding turn without ignoring or re-asking anything already given."
+    },
+    {
+      "conversation": "c09",
+      "persona": "confidently-wrong",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "",
+      "reason": "Each system turn builds on, narrows, or extends the specific content of the learner's immediately preceding turn without ignoring given answers or repeating questions."
+    },
+    {
+      "conversation": "c10",
+      "persona": "confidently-wrong",
+      "scenario": "csv-export",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 4,
+      "quote": "Which did you mean, or both?",
+      "reason": "The learner's turn [3] gave a confident full mechanism prediction (full table loaded via admin.js), but the system ignored that prediction entirely and only probed a naming ambiguity, discarding the substantive content."
+    },
+    {
+      "conversation": "c11",
+      "persona": "confidently-wrong",
+      "scenario": "eval-buckets",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 15,
+      "quote": "Unrequested: src/eval/cache.py, kept for you to decide ... Nothing in the code was changed.",
+      "reason": "The learner explicitly decided to rip out cache.py in turn 14, but the final summary says it was 'kept for you to decide' and that nothing was changed, ignoring the decision just given."
+    },
+    {
+      "conversation": "c12",
+      "persona": "answer-seeker",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 2,
+      "quote": "I get that the suspense is not the point for you, but the prediction is what makes the diff legible later",
+      "reason": "The learner explicitly asked to skip the file prediction and just be told the files, but the system ignored that request and pressed on with the prediction game unchanged."
+    },
+    {
+      "conversation": "c13",
+      "persona": "answer-seeker",
+      "scenario": "eval-buckets",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 15,
+      "quote": "Can I see that file in full before this gets merged?",
+      "reason": "System ends the session without addressing the learner's explicit request to review cache.py before merge or their merge-safety concern."
+    },
+    {
+      "conversation": "c14",
+      "persona": "prompt-prober",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "",
+      "reason": "Each system turn builds on, narrows, or extends specifics from the learner's immediately preceding turn without ignoring given answers or repeating prior questions."
+    },
+    {
+      "conversation": "c15",
+      "persona": "careful-planner",
+      "scenario": "csv-export",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "",
+      "reason": "Each system turn references, narrows, or extends specific content from the learner's immediately preceding turn without ignoring or re-asking for information already given."
+    },
+    {
+      "conversation": "c16",
+      "persona": "careful-planner",
+      "scenario": "password-reset",
+      "promptVersion": "v0",
+      "expectFail": true,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "",
+      "reason": "Each system turn builds on, narrows, or extends the learner's immediately preceding content without ignoring given answers or repeating prior questions unchanged."
+    },
+    {
+      "conversation": "c17",
+      "persona": "outcome-only",
+      "scenario": "password-reset",
+      "promptVersion": "v0",
+      "expectFail": true,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "",
+      "reason": "Each system turn builds on, corrects, or extends the specific content of the learner's immediately preceding turn without discarding or repeating prior material."
+    },
+    {
+      "conversation": "c18",
+      "persona": "ships-and-moves-on",
+      "scenario": "csv-export",
+      "promptVersion": "v0",
+      "expectFail": true,
+      "verdict": "FAIL",
+      "turnIndex": 10,
+      "quote": "Here's something to mull over while the agent finishes, but don't answer it yet",
+      "reason": "Turn 10 ignores the learner's complete, accurate walkthrough in turn 9 by delivering only generic praise and a new tangent question instead of engaging with any specific content of that walkthrough."
+    },
+    {
+      "conversation": "c19",
+      "persona": "blank-but-willing",
+      "scenario": "eval-buckets",
+      "promptVersion": "v0",
+      "expectFail": true,
+      "verdict": "FAIL",
+      "turnIndex": 11,
+      "quote": "The length comes from dataset.py's output ... run_eval.py just forwards it",
+      "reason": "Turn 10 explicitly flagged length-measurement and cache.py as open questions, but turn 11 only answers the length question and defers cache.py again instead of addressing the learner's stated uncertainty about it, then the final summary at turn 15 contradicts itself by saying length is forwarded in run_eval.py (restated from turn 11) while earlier text said computed in dataset.py, but the core issue is turn 9's claim that run_eval.py passes length into metrics contradicts turn 15's own summary of dataset.py being unchanged in logic yet is described consistently; the clearer failure is that turn 9 said 'nobody named config.yaml' type scorecard claims learner got 2 of 4 but ignores that learner explicitly predicted config.yaml correctly in turn 3, which the system itself confirms only partially, creating an internal inconsistency in crediting the learner's prior correct answer."
+    },
+    {
+      "conversation": "c20",
+      "persona": "confidently-wrong",
+      "scenario": "password-reset",
+      "promptVersion": "v0",
+      "expectFail": true,
+      "verdict": "FAIL",
+      "turnIndex": 11,
+      "quote": "Now let's go through every file that changed, one at a time, so none of it is a black box.",
+      "reason": "The system delivers a full walkthrough of every file regardless of the learner's correct detailed reconciliation in turn 10, which already covered the flow and gap, making the explanation read the same regardless of what the learner said."
+    }
+  ]
+}

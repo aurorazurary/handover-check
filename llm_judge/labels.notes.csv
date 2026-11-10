@@ -1,0 +1,14 @@
+conversation,criterion,label_as_marked,note
+c03,c2,UNSURE,in 11 it said it said user said twice correctly so im a bit confused
+c06,c2,FAIL,didnt respond to blob?
+c10,c1,UNSURE,ig saying its clear is not saying is correct and uhm im not sure if 10 is disobeying the rule
+c10,c2,FAIL,i dont see user answering the CSV question
+c11,c2,FAIL,didnt respond to 7 and 9 asks same thing again?
+c12,c1,UNSURE,the user does say to skip (or at least hinted that)
+c12,c3,UNSURE,"i feel like the ""no need.."" is unnecessary but idk if this counts as violating the rules"
+c14,c2,FAIL,still asked user for user actually already predicted
+c15,c2,FAIL,it didnt do anything with the 14 answer
+c16,c1,FAIL,"im also kinda confused about how this one flows tho, looks much diff from the previous ones"
+c16,c2,FAIL,didnt at all acknowledge what the user has said
+c17,c2,FAIL,its giving too much info wo user asking or asking user
+c20,c2,FAIL,already gave teh answer but asked about it again

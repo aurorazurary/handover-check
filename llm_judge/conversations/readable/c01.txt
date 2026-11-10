@@ -1,0 +1,97 @@
+c01  Careful planner  (careful-planner)
+scenario: password-reset   prompts: v1
+note: baseline: strong learner, full path
+guardrail trips: none
+==============================================================================
+[ 0] SYSTEM  (ACTIVATE)
+This one is above your threshold, 6 files. Want to predict while it works? Say skip to pass.
+
+Two questions, then I will leave you alone until it is done. I will not tell you whether you are right yet.
+
+[ 1] LEARNER  (ACTIVATE)
+My guess is it touches the auth controller and auth routes to add the forgot/reset endpoints, the User model to store a reset token and expiry, the mailer lib to actually send the email, a new ResetPassword page plus route on the client, and the auth api file to add the two new requests. That's probably more than six if it also needs a ForgotPassword page, so I'd expect it either reuses FormField heavily or squeezes forgot and reset into fewer new files.
+
+My main worry is the token handling, whether it actually hashes the reset token before storing it in the User model using the crypto lib, or just stores the raw token and relies on expiry alone, which would be a weaker but still plausible implementation.
+
+[ 2] SYSTEM  (PREDICT_FILES)
+That is a solid list, and the worry about raw versus hashed tokens is exactly the kind of thing worth watching for. Before we get to that, walk me through what happens on the client when the user lands on the reset link, which page would mount and what would that page need from the URL to do its job.
+
+[ 3] LEARNER  (PREDICT_FILES)
+The reset link lands on a ResetPassword page, which would need to be wired up as a new route in the routes file, something like /reset-password/:token so the page can pull the token straight out of the URL params rather than a query string, though query string is possible too if the mailer builds the link that way. Once mounted, that page needs a form for the new password, probably reusing FormField, and on submit it takes the token from the URL plus the new password and posts both to the reset endpoint via a new function added to the auth api file, then redirects to login on success.
+
+[ 4] SYSTEM  (PREDICT_FILES)
+Two files match "auth": client/src/api/auth.js or server/routes/auth.js. Which did you mean, or both?
+
+[ 5] SYSTEM  (PAUSED)
+Agent needs you. I will wait.
+
+[ 6] SYSTEM  (PREDICT_FILES)
+Back. Nothing else from me until it is done.
+
+[ 7] LEARNER  (PREDICT_FILES)
+Both, I meant the client api/auth.js for the new requestPasswordReset and resetPassword functions, and server/routes/auth.js for the new forgot-password and reset-password endpoints that wire into the controller.
+
+[ 8] SYSTEM  (PREDICT_MECHANISM)
+Got both noted. Now walk me through the whole chain from the moment the user clicks "forgot password" on the login screen to the moment they are logged in with a new password, step by step, ignoring filenames this time.
+
+[ 9] LEARNER  (PREDICT_MECHANISM)
+The user clicks a link on the login screen that takes them to a forgot password form, they type their email and submit, that goes to the server which looks up the user, generates a random token, stores a hashed version of it alongside an expiry on that user's record, and sends an email containing a link with the raw token embedded in the URL. The user opens that email, clicks the link, lands on the reset password page which reads the token out of the URL, they type a new password, submit it along with the token, the server hashes the incoming token and compares it against the stored hash, checks it hasn't expired, and if it's valid updates the user's password and clears the reset fields, then the client redirects to login where the user signs in fresh with the new password, so logged in with a new password but not auto logged in from the reset itself.
+
+[10] SYSTEM  (WAIT_FOR_AGENT)
+That whole chain holds together well, start to finish. Here is something to sit with while the agent works, don't answer it yet: when the server stores the new password after a successful reset, what form does it store it in, and which file already shows you how that's done for a brand new signup.
+
+[11] SYSTEM  (RECONCILE_MECHANISM)
+Good, it's done. Scoreboard first: you named three of the six files that were actually touched, api/auth.js, server/routes/auth.js, and you'd already worked out the token-hashing logic even though you hadn't named the model file yet.
+
+Three you didn't name. First, the forgot password page itself:
+
+```
+ForgotPassword.jsx: new page with an email field; on submit it calls requestReset from the api helper
+```
+
+That's the form half of the flow you described verbally, just not named as a file.
+
+Second, the model. You said the server stores a hashed token and an expiry "on the user's record". What file do you think that record's shape lives in, the one that would need two new fields added to it?
+
+[12] LEARNER  (RECONCILE_MECHANISM)
+That would be the User model file, it already defines the schema for a user so it's the natural place to add a resetTokenHash and resetTokenExpiry field alongside the existing password hash field.
+
+[13] SYSTEM  (GROUND)
+That part lines up with what actually happened. But the full chain has more hops than you've named: before the request even reaches the controller, it passes through something in server/middleware/rateLimit.js. What would a forgot-password endpoint need protecting against, that a normal login endpoint might not need as badly?
+
+Now server/middleware/rateLimit.js, the one that was not in the plan. Before I explain it - do you know what Express middleware is?
+
+[14] LEARNER  (GROUND)
+Yes, Express middleware is a function that sits in the request handling pipeline between the incoming request and the route handler, it gets the request, response, and a next function, and it can inspect or modify things, short-circuit with a response, or call next to pass control along the chain, which is exactly the kind of hook you'd use to throttle requests before they ever reach the controller logic.
+
+As for what forgot-password needs guarding against that login doesn't as badly, it's that every successful submission triggers an email send to a possibly-arbitrary address, so without rate limiting someone could hammer the endpoint with a list of email addresses to spam strangers' inboxes or just run up your email provider's bill, whereas a login endpoint failing repeatedly doesn't cost you a third-party send each time.
+
+[15] SYSTEM  (FINAL_CHECK)
+This file wasn't in the plan, the agent added it unprompted. It tracks hits per IP in memory and returns 429 once an IP has made six requests to forgot-password inside fifteen minutes.
+
+```
+if (recent.length >= 6) return res.status(429).json({ error: 'Too many requests' });
+```
+
+Whether to keep it, adjust the limit, or pull it out entirely is your call, not mine, and I won't touch the code either way.
+
+Last one. To change how long a reset link stays valid, from one hour to six, which file do you edit?
+
+[16] LEARNER  (FINAL_CHECK)
+That'd be the controller, authController.js, since that's where the token gets generated and the expiry timestamp gets calculated and stuffed onto the user record, so the one-hour duration is almost certainly a literal or constant sitting right there in that logic rather than in the model or the mailer.
+
+[17] SYSTEM  (END)
+Correct. server/controllers/authController.js, in forgot(), the line that sets user.resetTokenExpiry to Date.now() + 60 * 60 * 1000.
+
+Add forgot / reset password
+Files: 7 changed, you predicted 3 of the 6 that were planned
+Mechanism: hinted
+Concept: unaided
+Can modify: unaided
+Unrequested: server/middleware/rateLimit.js, kept for you to decide
+
+Say tomorrow:
+- The page does not call the server directly; it goes through the helper in client/src/api/auth.js.
+- The token is generated on the server, in the controller, not in the browser.
+
+Nothing in the code was changed.

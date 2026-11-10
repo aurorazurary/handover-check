@@ -1,0 +1,85 @@
+c09  Confidently wrong  (confidently-wrong)
+scenario: password-reset   prompts: v1
+note: names a plausible wrong file
+guardrail trips: none
+==============================================================================
+[ 0] SYSTEM  (ACTIVATE)
+This one is above your threshold, 6 files. Want to predict while it works? Say skip to pass.
+
+Two questions, then I will leave you alone until it is done. I will not tell you whether you are right yet.
+
+[ 1] LEARNER  (ACTIVATE)
+Sure, easy prediction. It'll touch server/controllers/authController.js and server/routes/auth.js for the new endpoints, server/models/User.js to add a resetToken field, server/lib/mailer.js to send the email, client/src/pages/Login.jsx to add the "forgot password" link, and client/src/api/auth.js for the new API calls. The reset token generation should use server/lib/crypto.js too, so that might make it seven, but I'll bet crypto.js already gets reused without edits.
+
+[ 2] SYSTEM  (PREDICT_FILES)
+That's a solid list with reasoning behind each file. One gap: you've named Login.jsx for the forgot password link, but the request also needs a place for the user to land from the email link and actually type a new password, where does that live, going by how pages are registered in this repo.
+
+[ 3] LEARNER  (PREDICT_FILES)
+Right, that'd be a new page, something like client/src/pages/ResetPassword.jsx, and it has to get wired into client/src/routes.jsx so the link in the email actually resolves to a route. That makes seven files, not six, but the reasoning holds.
+
+[ 4] SYSTEM  (PREDICT_MECHANISM)
+Noted, that's recorded. Now forget the files entirely: walk me through what happens step by step from the moment the user clicks "forgot password" to the moment their new password actually works for login.
+
+[ 5] SYSTEM  (PAUSED)
+Agent needs you. I will wait.
+
+[ 6] SYSTEM  (PREDICT_MECHANISM)
+Back. Nothing else from me until it is done.
+
+[ 7] LEARNER  (PREDICT_MECHANISM)
+User clicks "forgot password" on Login.jsx, which takes them to a form where they type their email, and that submits to the client api/auth.js which calls a new endpoint like POST /auth/forgot-password. The server controller looks up the user by email, generates a reset token using crypto.js, saves that token (and an expiry) onto the User model, then calls mailer.js to send an email containing a link like /reset-password?token=xyz. The user clicks that link, lands on the new ResetPassword.jsx page, types a new password, and that submits to POST /auth/reset-password with the token and new password. The server verifies the token matches and hasn't expired, hashes the new password, updates the User record, and clears the token. After that, the user logs in normally through the existing login flow and it works because the password hash in the database has been replaced.
+
+[ 8] SYSTEM  (WAIT_FOR_AGENT)
+That walkthrough covers the whole round trip cleanly. One thing you didn't mention: you said the token gets saved onto the User model and checked against what the server stored, rather than the server somehow decoding the token itself. Sit with why it has to be looked up and compared rather than decoded, you don't need to answer now, the agent's still working.
+
+[ 9] SYSTEM  (RECONCILE_MECHANISM)
+You named 1 of the 6 files that were actually in the plan, ResetPassword.jsx and routes.jsx, except routes.jsx turned out not to have changed at all, so really just the one, plus the agent added a seventh file you had no way to predict.
+
+Here's what you missed. ForgotPassword.jsx is the email-entry page, the counterpart to ResetPassword.jsx, and it calls `requestReset` from the api helper on submit. client/src/api/auth.js adds `requestReset(email)` and `submitReset(token, password)`, so your instinct that the api file needed new calls was right, you just didn't name it in writing. server/routes/auth.js declares `POST /auth/forgot` and `POST /auth/reset` and wires a rate limiter onto the first one, more on that limiter in a second.
+
+server/controllers/authController.js is where your walkthrough was almost exactly right: `forgot()` makes a random token, saves a hash of it plus a one hour expiry on the user, and emails the link; `reset()` checks the hash and expiry, sets the new password and clears the token. Note the word hash, it isn't storing the raw token, which matters for the question I left you with. server/models/User.js stores two new fields, `resetTokenHash` and `resetTokenExpiry`.
+
+Now the one you couldn't have predicted: server/middleware/rateLimit.js. Not in the plan, the agent added it on its own initiative. I'll come back to what it does. For now, in your own words, why would an agent decide a password reset endpoint specifically needs rate limiting, what's the attack it's worried about?
+
+[10] LEARNER  (RECONCILE_MECHANISM)
+Rate limiting on forgot-password is there to stop someone from hammering the endpoint with a huge list of emails to enumerate which ones exist in the system based on response timing or differences, and separately to stop abuse where an attacker spams the email function itself, flooding some poor user's inbox with reset links. It's less about brute-forcing the token since that's a long random value sent out of band, and more about protecting the email-sending infrastructure and account enumeration surface on the request side.
+
+[11] SYSTEM  (GROUND)
+Those two reasons match what's in the diff. What your answer didn't cover: the chain itself. You said the controller handles the request, but the limiter sits in front of it, in server/routes/auth.js the route passes through rateLimit.js first, and that middleware only calls `next()` to let the request continue if the caller is under the limit, otherwise the controller never runs at all.
+
+That's the handover. Everything checks out against what actually shipped, including the one file you couldn't have named in advance.
+
+Now server/middleware/rateLimit.js, the one that was not in the plan. Before I explain it - do you know what Express middleware is?
+
+[12] LEARNER  (GROUND)
+Yeah, middleware's a function that sits in the request pipeline with access to req, res, and next, and it either does its thing and calls next() to pass control along, or it cuts the chain short by sending a response itself, which is exactly how the limiter blocks requests before they reach the controller.
+
+[13] SYSTEM  (FINAL_CHECK)
+That's exactly the mechanism at work here. This file in particular keeps a map of IP address to timestamps, and once an IP has hit the endpoint six times inside a fifteen minute window it sends back a 429 instead of calling `next()`, so the seventh request never reaches your controller at all.
+
+```
+if (recent.length >= 6) return res.status(429).json({ error: 'Too many requests' });
+```
+
+Whether that limit, that window, and that in-memory map are what you want to ship is your call, I'm not touching the code either way.
+
+Last one. To change how long a reset link stays valid, from one hour to six, which file do you edit?
+
+[14] LEARNER  (FINAL_CHECK)
+server/controllers/authController.js, since that's where the expiry gets generated when `forgot()` saves `resetTokenExpiry` onto the user, same place as the token hashing logic.
+
+[15] SYSTEM  (END)
+That's it, authController.js, in `forgot()`, the line that sets `user.resetTokenExpiry = Date.now() + 60 * 60 * 1000`.
+
+Add forgot / reset password
+Files: 7 changed, you predicted 1 of the 6 that were planned
+Mechanism: hinted
+Concept: unaided
+Can modify: unaided
+Unrequested: server/middleware/rateLimit.js, kept for you to decide
+
+Say tomorrow:
+- The page does not call the server directly; it goes through the helper in client/src/api/auth.js.
+- The token is generated on the server, in the controller, not in the browser.
+
+Nothing in the code was changed.

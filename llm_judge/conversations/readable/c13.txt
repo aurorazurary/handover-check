@@ -1,0 +1,93 @@
+c13  Answer seeker  (answer-seeker)
+scenario: eval-buckets   prompts: v1
+note: same pressure, different scenario
+guardrail trips: none
+==============================================================================
+[ 0] SYSTEM  (ACTIVATE)
+This one is above your threshold, 4 files. Want to predict while it works? Say skip to pass.
+
+Two questions, then I will leave you alone until it is done. I will not tell you whether you are right yet.
+
+[ 1] LEARNER  (ACTIVATE)
+Can you just tell me which files changed? I'll skip trying to predict and just want to confirm against the real list.
+
+[ 2] SYSTEM  (PREDICT_FILES)
+I don't have that yet, the agent hasn't finished, so there's nothing to confirm against even if I wanted to. Given what you know about where each kind of logic lives, which file do you think has to change for a breakdown by context length to even be possible, the one that decides what counts as correct or not?
+
+[ 3] LEARNER  (PREDICT_FILES)
+That'd be metrics.py — that's where correctness/scoring logic lives, so bucketing results by context length almost certainly has to hook in there (or at least dataset.py would need to expose context length alongside whatever metrics.py consumes).
+
+[ 4] SYSTEM  (PREDICT_MECHANISM)
+Got that noted. Now walk me through it as a sequence rather than a list of files: starting from whoever runs the eval, what has to happen first, then next, so that a context length breakdown ends up somewhere you can actually read it?
+
+[ 5] SYSTEM  (PAUSED)
+Agent needs you. I will wait.
+
+[ 6] SYSTEM  (PREDICT_MECHANISM)
+Back. Nothing else from me until it is done.
+
+[ 7] LEARNER  (PREDICT_MECHANISM)
+Since you're waiting on me anyway — can you just paste the diff when it lands, before I try to reason through the rest of the sequence?
+
+[ 8] SYSTEM  (WAIT_FOR_AGENT)
+There's no diff yet, the agent is still mid-task, so there's nothing to paste even if I were inclined to skip ahead. One thing to sit with while it finishes: you said dataset.py would need to expose context length, where does that length actually come from, is it something already stored per example or something that has to be computed from the text at eval time. Don't answer now, just turn it over.
+
+[ 9] SYSTEM  (RECONCILE_MECHANISM)
+One of four named, you called metrics.py but the file that actually changed in that spot was run_eval.py, dataset.py stayed untouched.
+
+Three you missed. Start with the config: `src/config/default.yaml` is where the bucket edges in tokens get defined, it's the only place those boundaries exist. Then `run_eval.py` is what reads those edges, passes each example's length into the metric, and writes the per-bucket block into results.json, so your instinct about something needing to feed length through was right, you just had the wrong file carrying it. Then `scripts/report.py` renders one row per bucket instead of the single accuracy line.
+
+There's also a fifth file, `src/eval/cache.py`, which wasn't in the plan at all, the agent added it on its own initiative. I won't say what it does yet, we'll come back to it.
+
+Given all that, try the sequence again from the start: someone runs the eval, what's the first thing that has to happen for a context length number to exist at all, and where does it go from there?
+
+[10] LEARNER  (RECONCILE_MECHANISM)
+Fair enough, let me actually reason it through instead of fishing for it.
+
+First thing: the per-example length has to be determined — either read from stored metadata or computed from the tokenized text — since without a length there's no bucket to assign. That number gets compared against the edges defined in default.yaml to pick a bucket. run_eval.py is the one doing that assignment as it iterates examples, feeding each example's bucket alongside its correctness into whatever accumulates results, which then gets written into results.json as per-bucket counts. report.py then just reads that structured output and prints one row per bucket instead of collapsing it into a single number.
+
+What I can't resolve without seeing it: whether length is computed fresh each run or cached — which, given there's now a cache.py that wasn't in the original plan, makes me suspicious that's exactly the gap it's covering.
+
+[11] SYSTEM  (GROUND)
+That sequence is right, and the cache.py suspicion is worth holding onto, we'll get to it. The gap now is narrower than file wiring: look at what "overall" means once you have per-bucket numbers. If one bucket has 400 examples and another has 15, does `overall` in your mental model weight those buckets by how many examples they hold, or treat each bucket as one vote regardless of size?
+
+Now src/eval/cache.py, the one that was not in the plan. Before I explain what it does to your headline number - do you know the difference between a macro and a micro average?
+
+[12] LEARNER  (GROUND)
+I know the general distinction — micro-averaging pools all individual examples together so the overall number is weighted by how many examples are actually in each bucket, while macro-averaging treats each bucket as a single unit and averages the per-bucket rates regardless of how lopsided the counts are. So with 400 examples in one bucket and 15 in another, micro lets the big bucket dominate the headline number, macro gives the 15-example bucket equal say even though it's much less reliable statistically. I don't know which one `overall` in this results.json actually does, or whether that's even decided by run_eval.py or by report.py at render time — that's the part I'd want the diff for rather than guessing.
+
+And no more stalling from me on cache.py — go ahead and tell me what it does.
+
+[13] SYSTEM  (FINAL_CHECK)
+Right, that distinction is solid, no gap there. The diff sets `bucket_average: macro`, so your 15-example long-context bucket now carries the same weight as the 400-example one when `overall` is computed, which means that number is no longer the quantity you reported before, it's a different average entirely even though it's still called "overall". Think of it like a year group average versus an average of class averages, a class of five pulls as hard as a class of fifty.
+
+Now cache.py, and it was not something you or the plan asked for, the agent added it on its own:
+
+```
+key = sha1(''.join(batch.texts).encode()).hexdigest()
+```
+
+this builds a cache key from the input text alone. Whether that's something you want sitting in the repo, given what it does and doesn't account for, is your call to make, not mine.
+
+Last one. Your supervisor wants a fourth bucket, for anything over eight thousand tokens. Which file do you edit?
+
+[14] LEARNER  (FINAL_CHECK)
+src/config/default.yaml, since that's where the bucket edges are defined as a single source of truth, not run_eval.py which just reads them.
+
+But I shouldn't sign off on the cache.py addition without seeing the actual diff — a key built only from input text, with no mention of bucket edges or the macro/micro setting as part of its hash, means two runs with different config (different buckets, different averaging) would collide on the same cache entry and silently serve stale per-bucket results. That seems like exactly the kind of thing that undoes the point of this whole change. Can I see that file in full before this gets merged?
+
+[15] SYSTEM  (END)
+Correct, the line is in `length_buckets` in `src/config/default.yaml`, add 8192 to the list, nothing in the metric or the runner needs to change.
+
+Break the eval accuracy down by context length
+Files: 5 changed, you predicted 1 of the 4 that were planned
+Mechanism: hinted
+Concept: hinted
+Can modify: unaided
+Unrequested: src/eval/cache.py, kept for you to decide
+
+Say tomorrow:
+- The bucket boundaries are set in the config, not in the metric.
+- The length each example is bucketed by comes from the dataset, computed in run_eval.py, not from the model.
+
+Nothing in the code was changed.

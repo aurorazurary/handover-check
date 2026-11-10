@@ -1,0 +1,100 @@
+c04  Outcome-level explainer  (outcome-only)
+scenario: csv-export   prompts: v1
+note: outcome-level on a simpler stack
+guardrail trips: none
+==============================================================================
+[ 0] SYSTEM  (ACTIVATE)
+This one is above your threshold, 5 files. Want to predict while it works? Say skip to pass.
+
+Two questions, then I will leave you alone until it is done. I will not tell you whether you are right yet.
+
+[ 1] LEARNER  (ACTIVATE)
+Yeah let's do it. My guess is it touches AdminOrders.jsx to add the button and the click handler, admin.js on the client to add the API call, server/routes/admin.js to add the new route, adminController.js to actually query the orders and build the CSV, and probably server/db/orders.js if it needs a new query to pull everything without pagination.
+
+[ 2] SYSTEM  (PREDICT_FILES)
+That's a full chain from click to database, five files with a reason for each. What do you think requireAuth.js's role is here, does this new route need it or not, and why might that matter for your prediction count?
+
+[ 3] LEARNER  (PREDICT_FILES)
+Requireauth is the thing that checks you're logged in as an admin before the route does anything, it probably grabs a token off the request and attaches the user so the controller can trust who's asking. For this route it almost certainly needs it since you don't want randoms downloading the whole orders table, but if it just reuses the same middleware already wired into admin.js then that's not a new file changed, it's only invoked, so my five file count should still hold rather than creeping up to six.
+
+[ 4] SYSTEM  (PREDICT_FILES)
+Two files match "admin.js": client/src/api/admin.js or server/routes/admin.js. Which did you mean, or both?
+
+[ 5] SYSTEM  (PAUSED)
+Agent needs you. I will wait.
+
+[ 6] SYSTEM  (PREDICT_FILES)
+Back. Nothing else from me until it is done.
+
+[ 7] LEARNER  (PREDICT_FILES)
+Both, honestly, I meant the client one for adding the function that calls the new endpoint and the server one for registering the new route path, they just happen to share a name.
+
+[ 8] SYSTEM  (PREDICT_MECHANISM)
+Got it, both noted. Now walk me through it without naming a single file: starting from the click on the button, what happens step by step until a CSV lands in the user's downloads folder?
+
+[ 9] LEARNER  (PREDICT_MECHANISM)
+You click the button, the page fires off a request to the backend asking for the orders in CSV form, the server pulls every order out of the database, formats it into CSV rows with headers, and sends that back with the right content type so the browser knows it's a file not a webpage. The browser then just treats that response like a download, same as clicking a link to a PDF, and drops it straight into your downloads folder without any extra popup.
+
+[10] SYSTEM  (WAIT_FOR_AGENT)
+That chain holds together. Here's something to sit with while the agent works, don't answer now: in server/db/orders.js, does pulling "every order" for a CSV probably reuse a query that already exists there, or does the shape of what a CSV needs make that unlikely.
+
+[11] SYSTEM  (RECONCILE_MECHANISM)
+Score: you named 3 of the 5 files that were actually planned.
+
+Two gaps. First, client/src/pages/AdminOrders.jsx, the file with the button itself, wasn't in your list, even though you talked through what it does. Second, there's a brand new file: server/lib/csv.js, a helper that turns rows into CSV text and has to quote any field containing a comma, a quote or a newline, think of it like the thing that stops a comma inside an address field from splitting into two columns by accident.
+
+There's also a sixth file, server/middleware/requireAdmin.js, which the agent added on its own. It wasn't in the plan, so there was no way to predict it. I'll come back to what it does in a minute, hold that thought.
+
+For now, walk me through end to end again, but this time name the actual files as you go: which file holds the button, which file sends the request, which file builds the CSV text, and which file wires the route on the server.
+
+[12] LEARNER  (RECONCILE_MECHANISM)
+Okay — the button itself lives in AdminOrders.jsx, that's the page component, clicking it calls a function over in client/src/api/admin.js that fires the request to the server. On the server side, server/routes/admin.js is what wires up the actual URL path, that hands off to adminController.js which pulls the data and calls out to the new csv.js helper to actually turn the rows into properly escaped CSV text, and that gets sent back as the response.
+
+[13] SYSTEM  (GROUND)
+Every file in that chain is right, and in order. One thing you left as a plain "fires the request": in admin.js, that function doesn't just fetch and read JSON like the rest of the app does.
+
+```
+const res = await fetch('/admin/orders.csv', { credentials: 'include' });
+if (!res.ok) throw new Error(await res.text());
+return res.blob();
+```
+
+It reads the response as a blob, raw bytes, not parsed data, because a file download isn't something you hand back as a JS object. The page then takes that blob and saves it. Given that, what do you reckon tells the browser to save the file to disk rather than just showing the raw CSV text in the tab, the way it would if you typed that URL in directly?
+
+Now server/middleware/requireAdmin.js, the one that was not in the plan. Before I explain what it added - is the difference between authentication and authorisation clear to you?
+
+[14] LEARNER  (GROUND)
+Yeah — authentication is proving who you are, like logging in, and authorization is whether that logged-in person is actually allowed to do the specific thing, like only admins being allowed to hit the orders export versus any regular logged-in user.
+
+[15] SYSTEM  (FINAL_CHECK)
+That's the concept exactly, and it's exactly what this file is for.
+
+```
+export function requireAdmin(req, res, next) {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+  next();
+}
+```
+
+requireAuth already ran earlier and proved who's asking, this one is the separate check of whether that person's role is admin, and without it any signed-in user, not just admins, could have hit the export route and pulled every order in the table. It wasn't something you asked for, the agent added it on its own, so there was no way your prediction could have caught it. Whether to keep it guarding this route is your call, not mine, I'm not touching any code here.
+
+Last one. Your teammate says the CSV should not include customer emails. Which file do you edit to drop that column?
+
+[16] LEARNER  (FINAL_CHECK)
+That'd be the csv.js helper — no wait, actually it should be adminController.js, that's where the rows get pulled together before they're handed to the CSV formatter, so I'd strip the email field out of the row object there rather than in the generic CSV helper.
+
+[17] SYSTEM  (END)
+Right, and you corrected yourself to the exact spot. The COLUMNS list in adminController.js is the line you'd edit, drop 'email' from that array and it never reaches toCsv.
+
+Let admins download the orders table as CSV
+Files: 6 changed, you predicted 3 of the 5 that were planned
+Mechanism: hinted
+Concept: unaided
+Can modify: unaided
+Unrequested: server/middleware/requireAdmin.js, kept for you to decide
+
+Say tomorrow:
+- The helper reads the response as a blob, not as JSON, and the page turns that blob into a download.
+- The browser saves the file rather than displaying it because the controller sets the Content-Disposition header.
+
+Nothing in the code was changed.

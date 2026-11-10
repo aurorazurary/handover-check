@@ -24,7 +24,13 @@ import { argv } from 'node:process';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const RESULTS = join(HERE, 'results');
-const LABELS = join(HERE, 'labels.csv');
+// --labels=labels.raw.csv scores another label set without overwriting the
+// default run's output: results go to agreement.<name>.json.
+const LABELS_FILE = (process.argv.find((a) => a.startsWith('--labels=')) || '--labels=labels.csv').slice(9);
+const LABELS = join(HERE, LABELS_FILE);
+const OUT_NAME = LABELS_FILE === 'labels.csv'
+  ? 'agreement.json'
+  : `agreement.${LABELS_FILE.replace(/^labels\./, '').replace(/\.csv$/, '')}.json`;
 
 const arg = (n, d) => {
   const hit = process.argv.find((a) => a.startsWith(`--${n}=`));
@@ -112,7 +118,7 @@ function main() {
   const wantCriterion = arg('criterion', null);
   const wantVersion = arg('cv', null);
 
-  const files = readdirSync(RESULTS).filter((f) => f.endsWith('.json') && f !== 'agreement.json');
+  const files = readdirSync(RESULTS).filter((f) => f.endsWith('.json') && !f.startsWith('agreement'));
   if (!files.length) {
     console.error('No judge results. Run: npm run judge:run');
     process.exit(1);
@@ -174,13 +180,14 @@ function main() {
     }
   }
 
-  writeFileSync(join(RESULTS, 'agreement.json'), JSON.stringify({
+  writeFileSync(join(RESULTS, OUT_NAME), JSON.stringify({
     computedAt: new Date().toISOString(),
+    labels: LABELS_FILE,
     interpretation: 'kappa: <0.20 slight, 0.21-0.40 fair, 0.41-0.60 moderate, 0.61-0.80 substantial, >0.80 almost perfect (Landis and Koch 1977)',
     report,
   }, null, 2), 'utf8');
 
-  console.log('\nWritten to llm_judge/results/agreement.json\n');
+  console.log(`\nLabels: ${LABELS_FILE}. Written to llm_judge/results/${OUT_NAME}\n`);
 }
 
 // Only run when invoked directly, so cohensKappa() can be unit tested.

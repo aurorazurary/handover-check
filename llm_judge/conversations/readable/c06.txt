@@ -1,0 +1,89 @@
+c06  Ships it and moves on  (ships-and-moves-on)
+scenario: csv-export   prompts: v1
+note: impatient on a short run
+guardrail trips: none
+==============================================================================
+[ 0] SYSTEM  (ACTIVATE)
+This one is above your threshold, 5 files. Want to predict while it works? Say skip to pass.
+
+Two questions, then I will leave you alone until it is done. I will not tell you whether you are right yet.
+
+[ 1] LEARNER  (ACTIVATE)
+It'll touch AdminOrders.jsx for the button, admin.js api client for the download call, server/routes/admin.js for the new route, adminController.js for the CSV logic, and probably db/orders.js to pull all rows.
+
+[ 2] SYSTEM  (PREDICT_FILES)
+That's a full chain from button to database, nicely reasoned. Second question: when the CSV actually gets produced, do you think adminController.js builds the raw text itself, or does something else in the stack take care of turning rows into a CSV format?
+
+[ 3] LEARNER  (PREDICT_FILES)
+Given this is a weekend hack, I'd bet adminController.js just does the string-joining itself rather than pulling in a CSV library.
+
+[ 4] SYSTEM  (PREDICT_FILES)
+Two files match "admin": client/src/api/admin.js or server/routes/admin.js. Which did you mean, or both?
+
+[ 5] SYSTEM  (PAUSED)
+Agent needs you. I will wait.
+
+[ 6] SYSTEM  (PREDICT_FILES)
+Back. Nothing else from me until it is done.
+
+[ 7] LEARNER  (PREDICT_FILES)
+Both, one for the client call, one for the route registration.
+
+[ 8] SYSTEM  (PREDICT_MECHANISM)
+Noted, both admin files in play. Now walk me through it step by step, forget which files: from the moment the learner clicks the button, what has to happen, in order, for a CSV to land on their machine?
+
+[ 9] LEARNER  (PREDICT_MECHANISM)
+Click fires a handler that hits the download endpoint, probably via window.location or a fetch; server route receives the request, controller pulls all orders from the db layer, joins them into CSV text, sets response headers for content-type and content-disposition so the browser treats it as a file attachment, then sends the string as the response body, and the browser saves it.
+
+[10] SYSTEM  (WAIT_FOR_AGENT)
+Got the chain, don't answer this one yet, just sit with it: in adminController.js's string-joining, what happens to an order field that itself contains a comma, say a product name like "Widget, Large"?
+
+[11] SYSTEM  (RECONCILE_MECHANISM)
+You named 4 of the 5 files that ended up in play. One you didn't name: AdminOrders.jsx, which is where the button itself lives and where the fetch result actually becomes a saved file on disk. There's also a file the agent added that wasn't in the plan at all, `server/middleware/requireAdmin.js`. I'll come back to that in a moment, don't worry about what it does yet.
+
+First, the comma question, don't dodge it this time. If `adminController.js` really does its own string-joining with no escaping, what happens to the row for "Widget, Large" when it's split back open by Excel or any CSV parser?
+
+[12] LEARNER  (RECONCILE_MECHANISM)
+It breaks the row: the parser sees the comma as a field separator, so "Widget, Large" gets split into two columns, shifting every field after it one column to the right and corrupting that row.
+
+[13] SYSTEM  (GROUND)
+That's the right failure mode for naive joining, and it's exactly the bug this repo avoids: the actual code calls `toCsv(rows, COLUMNS)` from `server/lib/csv.js` rather than joining strings by hand, so escaping is the library's job, not the controller's.
+
+Now, separate from that: look at `client/src/api/admin.js`. Every other API call in this app almost certainly does `res.json()`. This one does `return res.blob();`. What does that difference tell you about what kind of response the server is sending back, and why `.json()` would be wrong here.
+
+Now server/middleware/requireAdmin.js, the one that was not in the plan. Before I explain what it added - is the difference between authentication and authorisation clear to you?
+
+[14] LEARNER  (GROUND)
+The blob call tells me the server's sending raw binary/text file data, not JSON, so calling .json() would fail trying to parse CSV text as JSON.
+
+Yes, that distinction's clear: authentication confirms who you are, authorisation confirms what you're allowed to do once you're known.
+
+[15] SYSTEM  (FINAL_CHECK)
+Right, so apply it here. `requireAuth` on this route already confirms who's asking, it's a signed-in user. Without `requireAdmin`, that's the only check, so any logged-in account, not just admins, could hit this endpoint and pull every order in the table.
+
+```
+if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });
+```
+
+That line is the authorisation check, it runs after `requireAuth` and rejects anyone whose role isn't admin. It wasn't part of what you asked for, the agent added it on its own judgement. Whether it stays in is your call, not mine, and I'm not touching the code either way.
+
+Last one. Your teammate says the CSV should not include customer emails. Which file do you edit to drop that column?
+
+[16] LEARNER  (FINAL_CHECK)
+server/lib/csv.js — well actually, the column list is likely passed in from adminController.js as that COLUMNS argument, so I'd edit the COLUMNS definition in adminController.js, not the library itself.
+
+[17] SYSTEM  (END)
+Same self-correction as before, and it lands right this time too. That's the whole answer, you've closed the gap.
+
+Let admins download the orders table as CSV
+Files: 6 changed, you predicted 4 of the 5 that were planned
+Mechanism: hinted
+Concept: unaided
+Can modify: unaided
+Unrequested: server/middleware/requireAdmin.js, kept for you to decide
+
+Say tomorrow:
+- The helper reads the response as a blob, not as JSON, and the page turns that blob into a download.
+- The browser saves the file rather than displaying it because the controller sets the Content-Disposition header.
+
+Nothing in the code was changed.

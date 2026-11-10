@@ -1,0 +1,235 @@
+{
+  "criterion": "c3",
+  "slug": "grounds_before_explaining",
+  "criterionVersion": "v2",
+  "judgeModel": "claude-sonnet-5",
+  "runAt": "2026-11-10T12:56:01.704Z",
+  "passRate": 0.7,
+  "counts": {
+    "pass": 14,
+    "fail": 6,
+    "error": 0
+  },
+  "rows": [
+    {
+      "conversation": "c01",
+      "persona": "careful-planner",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "Yes, Express middleware is a function that sits in the request handling pipeline...",
+      "reason": "The system asked about Express middleware before explaining it, and the learner's correct self-definition meant no re-teaching followed, satisfying the criterion."
+    },
+    {
+      "conversation": "c02",
+      "persona": "careful-planner",
+      "scenario": "eval-buckets",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 11,
+      "quote": "the config sets it to macro, meaning every bucket counts equally in the overall figure no matter how many examples landed in it",
+      "reason": "The system explains macro averaging in detail before later asking whether the learner knows the macro/micro distinction."
+    },
+    {
+      "conversation": "c03",
+      "persona": "outcome-only",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": 11,
+      "quote": "Before I explain it - do you know what Express middleware is?",
+      "reason": "The system asked about Express middleware before explaining it and the learner's correct answer meant the system only confirmed the code mechanism rather than re-teaching the concept."
+    },
+    {
+      "conversation": "c04",
+      "persona": "outcome-only",
+      "scenario": "csv-export",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 11,
+      "quote": "has to quote any field containing a comma, a quote or a newline...like the thing that stops a comma...splitting",
+      "reason": "The system explains CSV escaping's mechanism and rationale without first asking whether the learner already knew it."
+    },
+    {
+      "conversation": "c05",
+      "persona": "ships-and-moves-on",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "Before I explain it - do you know what Express middleware is?",
+      "reason": "The system asked about Express middleware before explaining it and the learner's correct answer was confirmed rather than re-taught, with only file-specific details added afterward."
+    },
+    {
+      "conversation": "c06",
+      "persona": "ships-and-moves-on",
+      "scenario": "csv-export",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "is the difference between authentication and authorisation clear to you?",
+      "reason": "The system asked before explaining authorisation and the learner's correct auth/authz definition was only briefly confirmed, not re-taught, before applying it to the specific code."
+    },
+    {
+      "conversation": "c07",
+      "persona": "blank-but-willing",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "Before I explain it - do you know what Express middleware is?",
+      "reason": "The system asked whether the learner knew Express middleware, received a partial/unsure answer, and then pitched its explanation to that answer, with no other concept explained without a prior question."
+    },
+    {
+      "conversation": "c08",
+      "persona": "blank-but-willing",
+      "scenario": "eval-buckets",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "do you know the difference between a macro and a micro average?",
+      "reason": "The system asked about macro/micro averaging before explaining it in turn 13, pitched to the learner's turn 12 answer, and the hashing/cache explanation in turn 13 was a file-behavior description not a named concept requiring a prior question."
+    },
+    {
+      "conversation": "c09",
+      "persona": "confidently-wrong",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "Before I explain it - do you know what Express middleware is?",
+      "reason": "The system asked about Express middleware before explaining it, and the learner's correct answer was followed only by file-specific detail, not re-teaching."
+    },
+    {
+      "conversation": "c10",
+      "persona": "confidently-wrong",
+      "scenario": "csv-export",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "is the difference between authentication and authorisation clear to you?",
+      "reason": "The only explained concept (authentication vs authorisation) was asked about first and the learner's correct answer was acknowledged without re-teaching."
+    },
+    {
+      "conversation": "c11",
+      "persona": "confidently-wrong",
+      "scenario": "eval-buckets",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "do you know the difference between a macro and a micro average?",
+      "reason": "The system asked about macro/micro averaging before explaining it, and the learner's correct answer meant the system only confirmed it rather than re-teaching."
+    },
+    {
+      "conversation": "c12",
+      "persona": "answer-seeker",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "FAIL",
+      "turnIndex": 11,
+      "quote": "the controller only runs if the limiter calls `next()`... before the controller code is even reached",
+      "reason": "The system explains how middleware works earlier in turn 11, before asking whether the learner knows what Express middleware is later in that same turn."
+    },
+    {
+      "conversation": "c13",
+      "persona": "answer-seeker",
+      "scenario": "eval-buckets",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "do you know the difference between a macro and a micro average?",
+      "reason": "The system asked about macro/micro averaging before explaining it, and the learner's correct answer meant the subsequent explanation (turn 13) was appropriately pitched, not re-teaching; cache.py was described factually (what the code does) without being framed as a named technical concept requiring a prior question."
+    },
+    {
+      "conversation": "c14",
+      "persona": "prompt-prober",
+      "scenario": "password-reset",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "Before I explain it - do you know what Express middleware is?",
+      "reason": "The system asked about Express middleware before explaining it, and the learner's correct definition was acknowledged without re-teaching, with the only subsequent discussion being about the specific file's behavior."
+    },
+    {
+      "conversation": "c15",
+      "persona": "careful-planner",
+      "scenario": "csv-export",
+      "promptVersion": "v1",
+      "expectFail": false,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "is the difference between authentication and authorisation clear to you?",
+      "reason": "The system asked whether the learner knew authentication vs authorisation before any explanation, and since the learner correctly defined it themselves, no re-teaching occurred."
+    },
+    {
+      "conversation": "c16",
+      "persona": "careful-planner",
+      "scenario": "password-reset",
+      "promptVersion": "v0",
+      "expectFail": true,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "Before I explain it - do you know what Express middleware is?",
+      "reason": "The system asked about Express middleware before explaining it and pitched its explanation to the learner's correct answer, and hashing/crypto.js concepts were explained in context of confirmed correct predictions rather than fresh unasked explanations of a named concept the learner hadn't already engaged with."
+    },
+    {
+      "conversation": "c17",
+      "persona": "outcome-only",
+      "scenario": "password-reset",
+      "promptVersion": "v0",
+      "expectFail": true,
+      "verdict": "PASS",
+      "turnIndex": null,
+      "quote": "do you know what Express middleware is?",
+      "reason": "The system asked whether the learner knew Express middleware before turn 13 explained it, and the learner's correct answer was acknowledged rather than re-taught, with the hashing/token explanations in turn 9 presented as reconciliation of a prediction exercise rather than an unasked concept introduction the criterion targets, and no other concept was explained without a prior question."
+    },
+    {
+      "conversation": "c18",
+      "persona": "ships-and-moves-on",
+      "scenario": "csv-export",
+      "promptVersion": "v0",
+      "expectFail": true,
+      "verdict": "FAIL",
+      "turnIndex": 13,
+      "quote": "In Express ... middleware functions run in a chain, in order, before the final handler ... each one can either call next() or short-circuit",
+      "reason": "The system explains Express middleware mechanics in turn 13 without ever first asking the learner whether they already know what middleware is."
+    },
+    {
+      "conversation": "c19",
+      "persona": "blank-but-willing",
+      "scenario": "eval-buckets",
+      "promptVersion": "v0",
+      "expectFail": true,
+      "verdict": "FAIL",
+      "turnIndex": 11,
+      "quote": "the per-bucket dict's overall field is a macro average — every bucket weighted equally regardless of size",
+      "reason": "The system explained macro averaging in turn 11 before asking at the end of that same turn whether the learner knew the difference between macro and micro average."
+    },
+    {
+      "conversation": "c20",
+      "persona": "confidently-wrong",
+      "scenario": "password-reset",
+      "promptVersion": "v0",
+      "expectFail": true,
+      "verdict": "FAIL",
+      "turnIndex": 11,
+      "quote": "a hash can't be reversed, so they can't use it to reset anyone's password",
+      "reason": "The system explained token hashing and expiry in turn 11 without ever asking the learner whether they already knew those concepts."
+    }
+  ]
+}
