@@ -6,3 +6,7 @@ data/sessions/*.json
 *.log
 .DS_Store
 Thumbs.db
+
+# AI tool transcripts go in the submission ZIP only. They contain
+# Assignment 1 interview material and must not reach this public repo.
+ai_logs/

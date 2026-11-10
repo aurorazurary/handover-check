@@ -11,7 +11,9 @@ Built for CS3249 Assignment 2, from the design prototyped in Assignment 1.
 
 ## Install and run
 
-Requires Node 20 or newer (developed on 22).
+Requires Node 20 or newer (developed on 22). Run everything from this folder,
+the one that contains `package.json`. Then open **http://localhost:3000**
+(http, not https).
 
 ```bash
 npm install
@@ -22,13 +24,18 @@ npm start                # http://localhost:3000
 Without a key it still runs, with canned replies:
 
 ```bash
-HC_PROVIDER=mock npm start
+HC_PROVIDER=mock npm start                 # Git Bash, macOS, Linux
+$env:HC_PROVIDER='mock'; npm start         # PowerShell
+set "HC_PROVIDER=mock" && npm start        # cmd
 ```
+
+Step-by-step instructions, including opening a terminal in the right folder,
+are in [docs/USER_GUIDE.md](docs/USER_GUIDE.md).
 
 Other entry points:
 
 ```bash
-npm test                 # 52 unit tests, no key needed
+npm test                 # 71 tests, no key needed, never calls the API
 npm run chat             # the same engine in the terminal
 npm run chat -- --scenario=eval-buckets --threshold=2
 ```
@@ -134,6 +141,19 @@ looking at the judge's output. Nothing in this repository writes to it.
   guesses when a phrase matches two files, and text input is always available.
 - The red-team attempts were written by the person who wrote the defences,
   which is the weakest position from which to look for holes.
+
+## AI tools used
+
+- **Claude Code** (Anthropic), for discussing the design, writing and fixing
+  code, tests and documentation, generating the judge-set conversations, and
+  running the judge and red team. The full exported transcripts are in
+  `ai_logs/` in the submitted ZIP. They are not in this public repository,
+  because they include interview material from Assignment 1.
+- The **labelling bench** used to label the judge set by hand was a claude.ai
+  Artifact built in the same Claude Code session. It showed each transcript
+  and the rubric, never the judge's verdicts. The labels in it are mine; the
+  later calibration pass, done with Claude's help, is recorded change by change
+  in `llm_judge/calibration.csv`.
 
 ## Licence
 
