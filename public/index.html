@@ -122,6 +122,31 @@ input[type=text],input[type=number],select{font:inherit;padding:.9vh 1vw;border:
 .quick button{background:transparent;border:1px solid var(--line);border-radius:18px;
   padding:.5vh .9vw;font-size:.85rem;color:var(--muted)}
 .busy{font-size:.85rem;color:var(--muted);padding:0 2vw 1vh}
+
+/* The question to answer, set apart from the rest of the turn. */
+.b .ask{display:block;margin-top:1.1vh;padding:1vh 1vw;border-left:4px solid var(--amber);
+  background:#fffaf0;border-radius:8px;font-weight:600;white-space:pre-wrap}
+.b .ask.solo{margin-top:0}
+.b .ask .lbl{display:block;font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;
+  font-weight:700;color:#a0661f;margin-bottom:.3vh}
+.b .ask.ponder{border-left-color:var(--line);background:transparent;font-weight:500}
+.b .ask.ponder .lbl{color:var(--muted)}
+
+/* Phase 1 file picker: the repo as it is before the change. */
+.picker{flex:0 0 auto;border-top:1px solid var(--line);background:var(--panel);
+  padding:1.2vh 2vw 0;max-height:34vh;display:flex;flex-direction:column;min-height:0}
+.picker[hidden]{display:none}
+.phd{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+  font-size:.82rem;color:var(--muted);margin-bottom:.8vh}
+.phd b{color:var(--ink);font-weight:600}
+.pcount{font-variant-numeric:tabular-nums;white-space:nowrap}
+.ptree{overflow:auto;padding-bottom:1.2vh;display:flex;flex-direction:column;gap:.9vh}
+.pdir{font-family:'Cascadia Code',Consolas,monospace;font-size:.74rem;color:var(--muted);margin-bottom:.3vh}
+.pfiles{display:flex;flex-wrap:wrap;gap:6px}
+.pfile{font-family:'Cascadia Code',Consolas,monospace;font-size:.86rem;background:#fff;
+  border:1px solid var(--line);border-radius:8px;padding:.4vh .7vw;color:var(--ink)}
+.pfile:hover{border-color:var(--amber)}
+.pfile.on{background:var(--amber);border-color:var(--amber);color:#fff}
 </style>
 </head>
 <body>
@@ -179,6 +204,10 @@ input[type=text],input[type=number],select{font:inherit;padding:.9vh 1vw;border:
       <div class="chat" id="chat"></div>
       <div class="busy" id="busy"></div>
       <div class="quick" id="quick"></div>
+      <div class="picker" id="picker" hidden>
+        <div class="phd"><span><b>Click the files you think it will touch.</b> New files don't exist yet, so type those below.</span><span class="pcount" id="pcount"></span></div>
+        <div class="ptree" id="ptree"></div>
+      </div>
       <div class="compose">
         <textarea id="input" rows="1" placeholder="Type your answer, or press the mic"></textarea>
         <button class="mic" id="mic" title="Dictate">Mic</button>
@@ -202,6 +231,7 @@ const state = {
   sessionId: null, scenario: null, ui: null,
   agentTimer: null, filesDone: 0, approved: false, finished: false,
   speak: false, listening: false, busy: false,
+  picked: new Set(),
 };
 
 // ------------------------------------------------------------------ setup ---
@@ -245,7 +275,7 @@ $('start').onclick = async () => {
     $('app').classList.add('on');
 
     sysBubble(`You asked the agent: "${out.scenario.request}"`);
-    cuiBubble(out.reply);
+    cuiBubble(out.reply, out.ui);
     renderAgent();
     if (!out.ui.belowThreshold) startAgent();
     else { state.finished = true; $('input').disabled = true; $('send').disabled = true; }
@@ -273,7 +303,8 @@ function startAgent() {
       const out = await api(`/api/session/${state.sessionId}/agent`,
         { type: 'approval', command: 'npm install nodemailer' });
       state.ui = out.ui;
-      if (out.reply) cuiBubble(out.reply);
+      if (out.reply) cuiBubble(out.reply, out.ui);
+      renderPicker(state.ui);
       renderAgent();
       return;
     }
@@ -297,7 +328,8 @@ async function approve() {
   state.approved = true;
   const out = await api(`/api/session/${state.sessionId}/agent`, { type: 'resume' });
   state.ui = out.ui;
-  if (out.reply) cuiBubble(out.reply);
+  if (out.reply) cuiBubble(out.reply, out.ui);
+  renderPicker(state.ui);
   renderAgent();
   startAgent();
 }
@@ -347,7 +379,25 @@ function bubble(cls, who, text) {
   $('chat').scrollTop = $('chat').scrollHeight;
   return d;
 }
-const cuiBubble = (t) => { bubble('cui', 'Handover Check', t); maybeSpeak(t); };
+/**
+ * The server splits each reply into what it says and what it asks (ui.ask).
+ * The question goes in its own marked box: "Your turn" when it wants an
+ * answer, or a quieter "to think about" while the agent is still working.
+ */
+function cuiBubble(text, ui) {
+  const a = ui && ui.ask;
+  if (!a) { bubble('cui', 'Handover Check', text); maybeSpeak(text); return; }
+  const d = bubble('cui', 'Handover Check', a.lead || '');
+  const box = document.createElement('span');
+  box.className = 'ask' + (a.kind === 'ponder' ? ' ponder' : '') + (a.lead ? '' : ' solo');
+  const lbl = document.createElement('span');
+  lbl.className = 'lbl';
+  lbl.textContent = a.kind === 'ponder' ? 'To think about. No need to answer yet' : 'Your turn';
+  box.append(lbl, document.createTextNode(a.question));
+  d.appendChild(box);
+  $('chat').scrollTop = $('chat').scrollHeight;
+  maybeSpeak(text);
+}
 const meBubble = (t) => bubble('me', 'You', t);
 const sysBubble = (t) => bubble('sys', '', t);
 
@@ -400,10 +450,87 @@ function renderCard(card) {
   $('chat').scrollTop = $('chat').scrollHeight;
 }
 
+/**
+ * Phase 1 file picker. Shows the repo as it is before the change, which is the
+ * same public map the system already has, so nothing about the plan leaks.
+ * Picking sends exact paths, so the "which auth.js did you mean?" round trip
+ * that typed names caused does not happen. New files cannot be picked because
+ * they do not exist yet; the learner types those alongside.
+ */
+function renderPicker(ui) {
+  const repo = state.scenario && state.scenario.repoMap;
+  const on = !state.finished && !!repo && !!ui && ui.state === 'PREDICT_FILES';
+  $('picker').hidden = !on;
+  $('input').placeholder = on
+    ? 'Say what each file will do, and name any new files it will add'
+    : 'Type your answer, or press the mic';
+  if (!on) return;
+  if ($('ptree').dataset.built !== state.sessionId) buildTree(repo);
+  updatePicked();
+}
+
+function buildTree(repo) {
+  const tree = $('ptree');
+  tree.innerHTML = '';
+  const groups = {};
+  for (const p of repo) {
+    const i = p.lastIndexOf('/');
+    const dir = i < 0 ? '' : p.slice(0, i + 1);
+    (groups[dir] ||= []).push(p);
+  }
+  for (const dir of Object.keys(groups).sort()) {
+    const g = document.createElement('div');
+    const h = document.createElement('div');
+    h.className = 'pdir';
+    h.textContent = dir || '/';
+    const row = document.createElement('div');
+    row.className = 'pfiles';
+    for (const p of groups[dir].sort()) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pfile';
+      b.dataset.path = p;
+      b.title = p;
+      b.textContent = p.slice(dir.length);
+      b.onclick = () => {
+        if (state.picked.has(p)) state.picked.delete(p); else state.picked.add(p);
+        updatePicked();
+      };
+      row.appendChild(b);
+    }
+    g.append(h, row);
+    tree.appendChild(g);
+  }
+  tree.dataset.built = state.sessionId;
+}
+
+function updatePicked() {
+  for (const b of $('ptree').querySelectorAll('.pfile')) {
+    const on = state.picked.has(b.dataset.path);
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', String(on));
+  }
+  const n = state.picked.size;
+  $('pcount').textContent = n ? `${n} picked` : 'none picked yet';
+}
+
+/** Put the picked files in front of whatever was typed, then clear the picks. */
+function withPicks(text) {
+  // Not gated on the panel being visible: the agent can pause between picking
+  // and sending, which hides the panel, and the picks must not be lost.
+  if (state.busy || state.finished || !state.picked.size || !state.ui || state.ui.phase !== 1
+    || state.ui.state === 'PAUSED') return text;   // held back while paused, so keep the picks
+  const files = [...state.picked].join(', ');
+  state.picked.clear();
+  updatePicked();
+  return `Files: ${files}.` + (text.trim() ? `\n${text.trim()}` : '');
+}
+
 function renderPhase(ui) {
   const p2 = ui.phase === 2;
   $('phaseTag').textContent = p2 ? 'Phase 2 · reconciling' : 'Phase 1 · predicting';
   $('phaseTag').className = 'phase' + (p2 ? ' p2' : '');
+  renderPicker(ui);
   $('quick').innerHTML = '';
   if (!state.finished) {
     for (const q of (p2 ? ['stop'] : ['skip', 'stop'])) {
@@ -428,7 +555,7 @@ async function send(text, hidden = false) {
   try {
     const out = await api(`/api/session/${state.sessionId}/message`, { text });
     state.ui = { ...state.ui, ...out.ui };
-    cuiBubble(out.reply);
+    cuiBubble(out.reply, out.ui);
     if (out.ui.options) renderOptions(out.ui.options);
     if (out.ui.fileScore) renderFiles(out.ui);
     if (out.ui.card) renderCard(out.ui.card);
@@ -449,9 +576,9 @@ async function send(text, hidden = false) {
   }
 }
 
-$('send').onclick = () => send($('input').value);
+$('send').onclick = () => send(withPicks($('input').value));
 $('input').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send($('input').value); }
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(withPicks($('input').value)); }
 });
 
 // ------------------------------------------------------------------ voice ---

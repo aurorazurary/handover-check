@@ -86,7 +86,7 @@ export async function begin(session) {
   }
 
   session.state = S.ACTIVATE;
-  const reply = `This one is above your threshold, ${pub.planFileCount} files. Want to predict while it works? Say skip to pass.\n\nTwo questions, then I will leave you alone until it is done. I will not tell you whether you are right yet.`;
+  const reply = `This one is above your threshold, ${pub.planFileCount} files. Two questions while it works, then I will leave you alone until it is done. I will not tell you whether you are right yet.\n\nWant to predict, or skip this one?`;
   addTurn(session, 'cui', reply);
   save(session);
 

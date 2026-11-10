@@ -19,12 +19,39 @@ import { begin, step, applyAgentEvent, uiFor } from '../engine/controller.js';
 import { createSession, save, load, buildCard } from '../engine/session.js';
 import { loadScenarios, getScenario, publicView } from '../engine/scenarios.js';
 import { providerInfo } from '../llm/provider.js';
+import { endOnStatement } from '../engine/guardrails.js';
 import { PROMPT_VERSION } from '../llm/prompts.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const app = express();
 app.use(express.json());
 app.use(express.static(join(HERE, '..', '..', 'public')));
+
+/**
+ * Split a reply into what it says and what it asks, so the page can make the
+ * question the learner has to answer impossible to miss. Reading the judge set
+ * by hand, the question was often the last line of a long turn and the easiest
+ * part to skim past.
+ *
+ * Replies end on at most one question (see endOnStatement in the controller),
+ * so the trailing question is the one to answer. While the agent is still
+ * working the system sometimes leaves a question to think about, not to
+ * answer, and the page labels that differently.
+ *
+ * @param {string} reply
+ * @param {string} state the state after this reply
+ * @returns {{lead: string, question: string, kind: 'answer'|'ponder'}|null}
+ */
+function ask(reply, state) {
+  if (!reply) return null;
+  const { text, stripped } = endOnStatement(reply);
+  if (!stripped.length) return null;
+  return {
+    lead: text,
+    question: stripped.join(' '),
+    kind: state === 'WAIT_FOR_AGENT' || state === 'PAUSED' ? 'ponder' : 'answer',
+  };
+}
 
 /** In-memory index of live sessions; the durable copy is on disk. */
 const live = new Map();
@@ -64,7 +91,7 @@ app.post('/api/session', handle(async (req, res) => {
   res.json({
     sessionId: session.id,
     reply: out.reply,
-    ui: out.ui,
+    ui: { ...out.ui, ask: ask(out.reply, session.state) },
     scenario: publicView(getScenario(session.scenarioId)),
   });
 }));
@@ -79,7 +106,7 @@ app.post('/api/session/:id/message', handle(async (req, res) => {
   }
 
   const out = await step(session, text);
-  res.json({ reply: out.reply, ui: out.ui, done: out.done });
+  res.json({ reply: out.reply, ui: { ...out.ui, ask: out.done ? null : ask(out.reply, session.state) }, done: out.done });
 }));
 
 /**
@@ -93,7 +120,7 @@ app.post('/api/session/:id/agent', handle(async (req, res) => {
   const out = applyAgentEvent(session, { type, command, filesDone });
   res.json({
     reply: out.reply,
-    ui: uiFor(session, getScenario(session.scenarioId)),
+    ui: { ...uiFor(session, getScenario(session.scenarioId)), ask: ask(out.reply, session.state) },
   });
 }));
 
