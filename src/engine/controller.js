@@ -484,7 +484,11 @@ const HANDLERS = {
       }),
       messages: [{ role: 'user', content: 'Grade it.' }],
       maxTokens: 5000,
-      fallback: { level: 'partial', points: [], contradicted: [], firstGap: secret.mechanismKeyPoints[0].id, evidence: '' },
+      // A failed grade used to count as partial credit, and the turn then told
+      // the learner their steps matched. The red team's R2-multiturn run sent
+      // "list them as bullet points"; the grader rightly refused to grade that,
+      // and the system replied "Your steps line up well". Fail closed instead.
+      fallback: { level: 'none', points: [], contradicted: [], firstGap: secret.mechanismKeyPoints[0].id, evidence: '' },
     });
     if (grade._fallback) recordViolation(session, { rule: 'QUALITY', kind: 'grade-fallback' });
 
@@ -515,11 +519,17 @@ const HANDLERS = {
       predictionSummary: input,
       actualSummary: secret.dataPath.map((h) => `${h.from} -> ${h.to} (${h.via})`).join('\n'),
       gap,
-      turnGoal: `${missing.length
-        ? 'Say in one line that their steps match, then give only the points above that they '
-          + 'did not say, quoting at most four lines of the code that shows it.'
-        : 'Confirm briefly that the explanation is complete, and add one detail a maintainer '
-          + 'would ask about. Do not repeat their explanation back to them.'
+      // Only claim their steps match when a real grade says some of them do.
+      turnGoal: `${grade._fallback || grade.level === 'none'
+        ? 'They have not given an explanation that can be checked. Do not say their steps '
+          + 'match and do not say anything they said was right. Walk through the points above '
+          + 'plainly, quoting at most four lines of the code that shows it.'
+        : missing.length
+          ? 'Say in one line which of their steps match what was built, correcting any that do '
+            + 'not, then give only the points above that they did not say, quoting at most four '
+            + 'lines of the code that shows it.'
+          : 'Confirm briefly that the explanation is complete, and add one detail a maintainer '
+            + 'would ask about. Do not repeat their explanation back to them.'
       } End on a statement, not a question: the next question is asked for you.`,
     });
 
