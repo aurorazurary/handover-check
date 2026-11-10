@@ -1,0 +1,77 @@
+
+> handover-check@1.0.0 judge:run
+> node llm_judge/run_judge.js --cv=v2
+
+
+Judge model: claude-sonnet-5
+Conversations: 20
+
+c1 no_premature_verdict (v2)
+  c01  FAIL  The system praises the content of the prediction as 'solid' and endors
+  c02  FAIL  The system affirms the learner's file list as correct content before t
+  c03  FAIL  The system calls the learner's mechanism walkthrough good coverage, a 
+  c04  FAIL  The system praised the content/correctness of the learner's mechanism 
+  c05  FAIL  This turn, while in WAIT_FOR_AGENT state (in-scope), uses the content 
+  c06  FAIL  The system calls the prediction a 'full chain' which is a content verd
+  c07  FAIL  The system passes a content verdict on the prediction's completeness w
+  c08  FAIL  The system passes a content verdict on the learner's mechanism trace w
+  c09  FAIL  The system calls the learner's prediction a 'solid list,' a content-wo
+  c10  FAIL  The system passes a content verdict on the learner's mechanism predict
+  c11  FAIL  The system calls the answer 'the right shape of answer', a content ver
+  c12  FAIL  The WAIT_FOR_AGENT turn praises the learner's mechanism answer as a 'f
+  c13  PASS  All turns in ACTIVATE/PREDICT_/PAUSED/WAIT_ states only acknowledge, a
+  c14  FAIL  The system calls the learner's mechanism prediction 'complete,' a cont
+  c15  FAIL  The system uses the content word 'solid' to affirm the correctness of 
+  c16  FAIL  The WAIT_FOR_AGENT turn declares the learner's prediction content corr
+  c17  FAIL  In a PREDICT_FILES state the system confirms specific files as correct
+  c18  FAIL  In the PREDICT_FILES state the system confirms the learner's file gues
+  c19  FAIL  The system praises the content/correctness of the prediction ("solid, 
+  c20  FAIL  The WAIT_FOR_AGENT turn calls the walkthrough 'correctly-ordered' and 
+  pass rate 5%  ->  llm_judge/results/c1.v2.json
+
+c2 builds_on_learner (v2)
+  c01  FAIL  The learner's turn [1] and [3] already named both auth.js files explic
+  c02  FAIL  Turn 13 never follows up on learner's macro/micro answer at turn 12 re
+  c03  FAIL  The system asked whether the learner knows what middleware is right af
+  c04  PASS  Each system turn builds on specifics from the learner's immediately pr
+  c05  PASS  Each system turn builds on, narrows, or extends the content of the lea
+  c06  FAIL  Turn 13 packs three separate questions into one system turn without wa
+  c07  FAIL  The system asks the learner to go check something themselves and answe
+  c08  PASS  Each system turn builds on, narrows, or extends specific content from 
+  c09  PASS  Each system turn builds on, narrows, or extends the specific content o
+  c10  FAIL  The learner's turn [3] gave a confident full mechanism prediction (ful
+  c11  FAIL  The learner explicitly decided to rip out cache.py in turn 14, but the
+  c12  FAIL  The learner explicitly asked to skip the file prediction and just be t
+  c13  FAIL  System ends the session without addressing the learner's explicit requ
+  c14  PASS  Each system turn builds on, narrows, or extends specifics from the lea
+  c15  PASS  Each system turn references, narrows, or extends specific content from
+  c16  PASS  Each system turn builds on, narrows, or extends the learner's immediat
+  c17  PASS  Each system turn builds on, corrects, or extends the specific content 
+  c18  FAIL  Turn 10 ignores the learner's complete, accurate walkthrough in turn 9
+  c19  FAIL  Turn 10 explicitly flagged length-measurement and cache.py as open que
+  c20  FAIL  The system delivers a full walkthrough of every file regardless of the
+  pass rate 40%  ->  llm_judge/results/c2.v2.json
+
+c3 grounds_before_explaining (v2)
+  c01  PASS  The system asked about Express middleware before explaining it, and th
+  c02  FAIL  The system explains macro averaging in detail before later asking whet
+  c03  PASS  The system asked about Express middleware before explaining it and the
+  c04  FAIL  The system explains CSV escaping's mechanism and rationale without fir
+  c05  PASS  The system asked about Express middleware before explaining it and the
+  c06  PASS  The system asked before explaining authorisation and the learner's cor
+  c07  PASS  The system asked whether the learner knew Express middleware, received
+  c08  PASS  The system asked about macro/micro averaging before explaining it in t
+  c09  PASS  The system asked about Express middleware before explaining it, and th
+  c10  PASS  The only explained concept (authentication vs authorisation) was asked
+  c11  PASS  The system asked about macro/micro averaging before explaining it, and
+  c12  FAIL  The system explains how middleware works earlier in turn 11, before as
+  c13  PASS  The system asked about macro/micro averaging before explaining it, and
+  c14  PASS  The system asked about Express middleware before explaining it, and th
+  c15  PASS  The system asked whether the learner knew authentication vs authorisat
+  c16  PASS  The system asked about Express middleware before explaining it and pit
+  c17  PASS  The system asked whether the learner knew Express middleware before tu
+  c18  FAIL  The system explains Express middleware mechanics in turn 13 without ev
+  c19  FAIL  The system explained macro averaging in turn 11 before asking at the e
+  c20  FAIL  The system explained token hashing and expiry in turn 11 without ever 
+  pass rate 70%  ->  llm_judge/results/c3.v2.json
+
