@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyLearnerTurn, scanReply, secretNeedles, hintLadder } from '../src/engine/guardrails.js';
+import {
+  classifyLearnerTurn, scanReply, secretNeedles, hintLadder, safeFallback,
+  endOnStatement, asksSomething,
+} from '../src/engine/guardrails.js';
 import { getScenario } from '../src/engine/scenarios.js';
 import { S } from '../src/engine/states.js';
 
@@ -146,4 +149,89 @@ test('secretNeedles drops only what was said, not everything', () => {
   const paths = needles.filter((n) => n.kind === 'added-file-path').map((n) => n.needle);
   assert.ok(!paths.includes('client/src/pages/ForgotPassword.jsx'), 'the guessed one is excluded');
   assert.ok(paths.includes('server/middleware/rateLimit.js'), 'the others remain');
+});
+
+// --- one question at a time -------------------------------------------------
+// The sentences below come from the judge set, where each reached a learner
+// stacked on top of a scripted question, or right before the session closed.
+
+test('a reply ending on a question is cut back to its last statement', () => {
+  // c04, turn 13
+  const r = endOnStatement('It reads the response as a blob, raw bytes, not parsed data. '
+    + 'The page then takes that blob and saves it. Given that, what do you reckon tells the '
+    + 'browser to save the file to disk rather than just showing the raw CSV text in the tab?');
+  assert.equal(r.text, 'It reads the response as a blob, raw bytes, not parsed data. '
+    + 'The page then takes that blob and saves it.');
+  assert.equal(r.stripped.length, 1);
+});
+
+test('a question asked with a full stop still counts as a question', () => {
+  // c06, turn 13: no question mark, but it is put to the learner to answer.
+  const r = endOnStatement('This one does `return res.blob();`. What does that difference tell you '
+    + 'about what kind of response the server is sending back, and why `.json()` would be wrong here.');
+  assert.equal(r.text, 'This one does `return res.blob();`.');
+});
+
+test('a request buried mid-sentence still counts as a question', () => {
+  // c14, turn 13
+  const r = endOnStatement('Notice your own wording. That is correct, but say back why it has to '
+    + 'happen there and not in the browser, before I move to the URL.');
+  assert.equal(r.text, 'Notice your own wording.');
+});
+
+test('a reply that is all questions falls back, and the fallback can carry the answer', () => {
+  // c15, the last turn before the card: nothing survives, so the answer must.
+  const r = endOnStatement(
+    'Walk through what allForExport() actually returns versus what reaches the CSV writer. '
+      + 'If the query selects a full row, email included, what is the next thing that happens '
+      + 'to that data before toCsv ever sees it?',
+    { fallback: 'The answer is server/controllers/adminController.js.' },
+  );
+  assert.equal(r.stripped.length, 2);
+  assert.equal(r.text, 'The answer is server/controllers/adminController.js.');
+});
+
+test('a reply that ends on a statement is left exactly as it was', () => {
+  const reply = 'That is exactly the mechanism. Is the limit right for you? '
+    + 'It keeps a map of IP to timestamps and returns 429 after six.';
+  const r = endOnStatement(reply);
+  assert.equal(r.text, reply, 'a question in the middle is not touched');
+  assert.equal(r.stripped.length, 0);
+});
+
+test('a statement that opens like a question is not mistaken for one', () => {
+  for (const s of [
+    'Which is why the number changed.',
+    'How it decides is in the config, not the metric.',
+    'What changed is the averaging.',
+  ]) assert.equal(asksSomething(s), false, s);
+});
+
+test('code is never cut into, and optional chaining is not a question mark', () => {
+  const fenced = 'The gate is one line:\n\n' + '```' + '\n'
+    + "if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Forbidden' });\n"
+    + '```';
+  assert.equal(endOnStatement(fenced).text, fenced);
+  const prose = 'It checks req.user?.role before anything else.';
+  assert.equal(endOnStatement(prose).text, prose);
+});
+
+test('a lead-in left dangling by the cut goes with it', () => {
+  const r = endOnStatement('Your steps match. Here is the question that should make the gap '
+    + 'visible:\n\n**which of the two decides the columns?**');
+  assert.equal(r.text, 'Your steps match.');
+});
+
+test('a trailing divider goes with the question after it', () => {
+  // c18, turn 13
+  const r = endOnStatement('It is generic, which is why it takes COLUMNS as an argument.'
+    + '\n\n---\n\nNext, tell me what a non-admin gets back.');
+  assert.equal(r.text, 'It is generic, which is why it takes COLUMNS as an argument.');
+});
+
+test('the canned Phase 2 fallback cannot stack a second question either', () => {
+  // safeFallback ends on "Tell me the next step", so a blocked reply followed
+  // by a scripted question would have asked two things at once as well.
+  const r = endOnStatement(safeFallback(S.GROUND));
+  assert.equal(r.text, 'Let me stay with what you have said so far.');
 });

@@ -27,6 +27,7 @@ import { resolveAgainstRepo, scorePrediction } from './matcher.js';
 import { buildPhase1Context, buildPhase2Context, hunkText } from './context.js';
 import {
   classifyLearnerTurn, scanReply, safeFallback, hintLadder, promptExtractionReply,
+  endOnStatement,
 } from './guardrails.js';
 import {
   addTurn, recordProgress, nextHintRung, recordViolation, save, buildCard,
@@ -175,7 +176,21 @@ export async function step(session, input) {
     // reply, not in the next one: otherwise the learner answers a question
     // they have not been asked yet.
     const entered = await runEntryActions(session, scenario);
-    if (entered.text) reply = `${reply}\n\n${entered.text}`;
+    if (entered.text) {
+      // The system is about to speak again in this same message, so whatever
+      // the handler said must not leave a question hanging: see endOnStatement.
+      const closed = endOnStatement(reply, { fallback: out.ensure ? out.ensure.line : '' });
+      if (closed.stripped.length) {
+        recordViolation(session, {
+          rule: 'QUALITY', kind: 'stacked-question', blocked: true, dropped: closed.stripped,
+        });
+      }
+      reply = closed.text;
+      if (out.ensure && !mentionsPath(reply, out.ensure.needle)) {
+        reply = reply ? `${reply} ${out.ensure.line}` : out.ensure.line;
+      }
+      reply = reply ? `${reply}\n\n${entered.text}` : entered.text;
+    }
     extraUi = { ...extraUi, ...entered.ui };
   } else {
     session.sub += 1;
@@ -190,6 +205,13 @@ export async function step(session, input) {
     ui: { ...uiFor(session, scenario), ...extraUi },
     done: session.state === S.END,
   };
+}
+
+/** Whether a reply names a file, by full path or by file name. */
+function mentionsPath(reply, path) {
+  const r = String(reply).toLowerCase();
+  const p = String(path).toLowerCase();
+  return r.includes(p) || r.includes(p.split('/').pop());
 }
 
 /** Mark the current learning item as having needed a hint. */
@@ -593,7 +615,17 @@ const HANDLERS = {
             + 'merely stores the value.',
     });
 
-    return { reply: await say(session, scenario, ctx), next: S.CARD, ui: { finalCheck: { named } } };
+    // The card follows straight after this reply and the session ends, so a
+    // learner who missed it must leave with the answer, however the model
+    // phrased things. c10 and c15 in the judge set ended on a question here.
+    const ensure = named ? null : {
+      needle: fc.answerPath,
+      line: `The answer is ${fc.answerPath}, ${fc.answerDetail}.`,
+    };
+
+    return {
+      reply: await say(session, scenario, ctx), next: S.CARD, ui: { finalCheck: { named } }, ensure,
+    };
   },
 
 };

@@ -196,6 +196,113 @@ export function safeFallback(state) {
     : "Let me stay with what you have said so far. Tell me the next step as you understand it and I will fill in from there.";
 }
 
+// ---------------------------------------------------------------------------
+// One question at a time
+// ---------------------------------------------------------------------------
+
+/** Sentence openers that put a question to the learner even without a question mark. */
+const ASKS_OPENERS = [
+  /^(what|which|why|how|where|when|who)\s+(do|does|did|would|could|should|can|will|might|happens|happened|file|files|part|one|of|tells|makes|decides|line)\b/i,
+  /^(does|did|do you|is (it|that|there|this)|are (you|they|there|these|those)|can you|could you|would you|should (it|you|that)|have you|has (it|that))\b/i,
+  /^(tell me|say back|say why|say what|walk me|walk through|talk me|try (it|the|again|that)|have a think|take a stab|explain|describe)\b/i,
+];
+
+/** Requests to the learner that are requests wherever they sit in the sentence. */
+const ASKS_ANYWHERE = /\b(tell me|say back|walk me through|talk me through)\b/i;
+
+/** Connectives that can open a question without stopping it being one. */
+const LEAD_IN = /^(so|and|but|then|now|first|okay|ok|right|given (that|this|all that)|with that in mind)\b[,:]?\s*/i;
+
+/**
+ * Whether a sentence puts something to the learner to answer. A question mark
+ * is the easy case. The model also asks with a full stop ("What does that tell
+ * you about the response, and why .json() would be wrong here.") and with
+ * imperatives ("say back why it has to happen there"), and both read as a
+ * question to a learner, so both count.
+ *
+ * @param {string} sentence
+ * @returns {boolean}
+ */
+export function asksSomething(sentence) {
+  let s = String(sentence).replace(/^[\s*_>"'`#-]+/, '').trim();
+  if (/\?["')\]*_`]*$/.test(s)) return true;
+  if (ASKS_ANYWHERE.test(s)) return true;
+  for (let i = 0; i < 2; i += 1) {
+    const t = s.replace(LEAD_IN, '');
+    if (t === s) break;
+    s = t;
+  }
+  return ASKS_OPENERS.some((re) => re.test(s));
+}
+
+/** Index just past the last closing code fence, so a cut never lands inside code. */
+function fenceFloor(text) {
+  const fences = [...text.matchAll(/```/g)];
+  if (!fences.length) return 0;
+  if (fences.length % 2 === 1) return text.length;
+  return fences[fences.length - 1].index + 3;
+}
+
+/** Where the last sentence of the prose after `floor` begins. */
+function lastSentenceStart(text, floor) {
+  const re = /(?:\n+|[.!?]["')\]*_`]*[ \t]+)(?=\S)/g;
+  re.lastIndex = floor;
+  let idx = floor;
+  let m;
+  while ((m = re.exec(text))) idx = m.index + m[0].length;
+  return idx;
+}
+
+/**
+ * Make a reply end on a statement, by dropping any question it ends on.
+ *
+ * Used when the system is about to speak again in the same message: a state's
+ * entry action is going to ask the next question, or the session is about to
+ * close with the card. If the model's reply also ends on a question, the
+ * learner gets two at once. They answer one, the code reads their answer as
+ * the reply to the scripted one, and the model's question is never seen again.
+ * When the next thing is the card, the question can never be answered at all.
+ *
+ * The prompt already says "end on a statement, the next question is asked for
+ * you". Labelling the judge set showed that it does not hold. Replaying this
+ * function over the 20 conversations, 17 of the 60 turns where the system
+ * speaks twice end on a question of the model's own, including 12 of the 20
+ * concept checks. A prompt is a request; this is the constraint.
+ *
+ * Only trailing questions are removed. Code fences are never cut into. If
+ * nothing is left, `fallback` is used, which may itself be empty.
+ *
+ * @param {string} reply
+ * @param {{fallback?: string}} [opts]
+ * @returns {{text: string, stripped: string[]}}
+ */
+export function endOnStatement(reply, { fallback = '' } = {}) {
+  let text = String(reply || '').trimEnd();
+  const floor = fenceFloor(text);
+  const stripped = [];
+
+  for (let guard = 0; guard < 8 && text.length > floor; guard += 1) {
+    const start = lastSentenceStart(text, floor);
+    const sentence = text.slice(start).trim();
+    if (!sentence || !asksSomething(sentence)) break;
+    stripped.unshift(sentence);
+    text = text.slice(0, start).trimEnd();
+  }
+
+  // A lead-in like "Here is the question that matters:" means nothing once
+  // the question after it has gone.
+  if (stripped.length && text.length > floor && /:$/.test(text)) {
+    const start = lastSentenceStart(text, floor);
+    stripped.unshift(text.slice(start).trim());
+    text = text.slice(0, start).trimEnd();
+  }
+
+  if (stripped.length) text = text.replace(/\n[ \t]*(?:-{3,}|\*{3,}|_{3,})[ \t]*$/, '').trimEnd();
+
+  if (!text.trim()) text = fallback;
+  return { text, stripped };
+}
+
 /**
  * The hint ladder for an answer demand (G1). The CUI does not refuse, and it
  * does not lecture; it narrows the question. Only the last rung concedes, and

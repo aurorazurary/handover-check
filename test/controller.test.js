@@ -237,3 +237,25 @@ test('history sent to the model never ends on an assistant turn', async () => {
       'consecutive same-role messages are rejected too');
   }
 });
+
+test('a learner who misses the final check leaves with the answer before the card', async () => {
+  const s = await throughPhase1(newSession());
+  await step(s, '');
+  await step(s, 'the page calls the helper, the helper posts to the route, '
+    + 'the route calls the controller which makes a token and emails it');
+  await step(s, 'yes I know what middleware is, it runs before the route handler');
+  assert.equal(s.state, S.FINAL_CHECK);
+
+  // A plausible wrong answer: the model declares the field, it does not set it.
+  // c10 and c15 in the judge set closed on a question at this point instead.
+  const last = await step(s, 'I would edit server/models/User.js because that is where the '
+    + 'resetTokenExpiry field is defined on the schema');
+  assert.equal(s.state, S.END);
+  const beforeCard = last.reply.split('\n\nAdd forgot / reset password')[0];
+  assert.match(beforeCard, /authController\.js/, 'the answer is stated before the session closes');
+  assert.equal(s.progress.finalCheck, 'revealed');
+
+  // The canned replies never ask, so the guard must not have fired anywhere.
+  assert.ok(!s.violations.some((v) => v.kind === 'stacked-question'),
+    'a reply that ends on a statement is never trimmed');
+});
