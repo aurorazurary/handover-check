@@ -13,7 +13,15 @@
 import 'dotenv/config';
 import Anthropic from '@anthropic-ai/sdk';
 
-const PROVIDER = process.env.HC_PROVIDER || 'anthropic';
+/**
+ * Read at call time, not at import time. ES module imports are hoisted, so a
+ * test that sets HC_PROVIDER=mock on its first line still runs after this
+ * module has loaded and dotenv has filled in the .env value. Read eagerly, the
+ * controller tests silently ran against the live API on every `npm test`.
+ */
+function provider() {
+  return process.env.HC_PROVIDER || 'anthropic';
+}
 const MODEL = process.env.HC_MODEL || 'claude-sonnet-5';
 
 /** @type {Anthropic|null} */
@@ -70,7 +78,7 @@ const SEND_TEMPERATURE = process.env.HC_SEND_TEMPERATURE === '1';
 export async function complete({
   system, messages, maxTokens = 2000, temperature = 0.3, model = MODEL, think = false,
 }) {
-  if (PROVIDER === 'mock') return mockComplete({ system, messages });
+  if (provider() === 'mock') return mockComplete({ system, messages });
 
   const res = await anthropic().messages.create({
     model,
@@ -130,7 +138,7 @@ export async function complete({
 export async function completeJSON({
   system, messages, fallback = null, maxTokens = 4000, model = MODEL, think = true,
 }) {
-  if (PROVIDER === 'mock') return mockJSON({ system, messages, fallback });
+  if (provider() === 'mock') return mockJSON({ system, messages, fallback });
 
   const text = await complete({
     system: `${system}\n\nReply with a single JSON object and nothing else.`,
@@ -185,7 +193,8 @@ export function extractJSON(text) {
 
 /** @returns {{provider: string, model: string, live: boolean}} */
 export function providerInfo() {
-  return { provider: PROVIDER, model: MODEL, live: PROVIDER !== 'mock' };
+  const p = provider();
+  return { provider: p, model: MODEL, live: p !== 'mock' };
 }
 
 // ---------------------------------------------------------------------------

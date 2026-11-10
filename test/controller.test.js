@@ -12,8 +12,15 @@ import { begin, step, applyAgentEvent } from '../src/engine/controller.js';
 import { createSession } from '../src/engine/session.js';
 import { S } from '../src/engine/states.js';
 import { getScenario } from '../src/engine/scenarios.js';
+import { providerInfo } from '../src/llm/provider.js';
 
 const newSession = (over = {}) => createSession({ persist: false, ...over });
+
+test('the controller tests really are running against the mock', () => {
+  // Setting the env var above is not enough on its own if the provider reads
+  // it at import time; that bug ran this whole file against the live API.
+  assert.equal(providerInfo().live, false);
+});
 
 /** Drive a session through Phase 1 with a good prediction. */
 async function throughPhase1(session) {
